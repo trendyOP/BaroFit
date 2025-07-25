@@ -36,8 +36,17 @@ export default function TabLayout() {
       <Tabs.Screen
         name="explore"
         options={{
-          title: 'Explore',
+          title: '측면 감지 카메라',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="exercise"
+        options={{
+          title: '정면 감지 카메라',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="camera.fill" color={color} />
+          ),
         }}
       />
     </Tabs>

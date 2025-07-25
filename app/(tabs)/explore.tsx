@@ -1,110 +1,227 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+/**
+ * app/(tabs)/explore.tsx
+ *
+ * 측면 포즈 감지 화면
+ * - 측면 포즈 감지 모드 실행
+ * - 측면 랜드마크 시각화 확인
+ * - 측면 분석 결과 확인
+ */
+import { SidePoseDetectionMode } from '@/app/camera/modes/SidePoseDetectionMode';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Collapsible } from '@/components/Collapsible';
-import { ExternalLink } from '@/components/ExternalLink';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 
-export default function TabTwoScreen() {
+export default function SidePoseDetectionScreen() {
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraKey, setCameraKey] = useState(0);
+
+  // 탭이 포커스될 때 카메라를 활성화하고, 포커스를 잃을 때 비활성화합니다.
+  useFocusEffect(
+    React.useCallback(() => {
+      // Screen is focused
+      setCameraKey(prev => prev + 1); // Force remount
+      setIsCameraActive(true);
+      
+      return () => {
+        // Screen is unfocused
+        setIsCameraActive(false);
+      };
+    }, [])
+  );
+
+  const handleStopTest = () => {
+    setIsCameraActive(false);
+  };
+
+  if (isCameraActive) {
+    return (
+      <View style={styles.container}>
+        <SidePoseDetectionMode key={cameraKey} isActive={isCameraActive} />
+        <TouchableOpacity
+          style={styles.stopButton}
+          onPress={handleStopTest}
+        >
+          <Text style={styles.stopButtonText}>측면 감지 종료</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Explore</ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image source={require('@/assets/images/react-logo.png')} style={{ alignSelf: 'center' }} />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Custom fonts">
-        <ThemedText>
-          Open <ThemedText type="defaultSemiBold">app/_layout.tsx</ThemedText> to see how to load{' '}
-          <ThemedText style={{ fontFamily: 'SpaceMono' }}>
-            custom fonts such as this one.
-          </ThemedText>
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/versions/latest/sdk/font">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful <ThemedText type="defaultSemiBold">react-native-reanimated</ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <Text style={styles.title}>측면 포즈 감지</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📋 기능 개요</Text>
+          <Text style={styles.description}>
+            측면 포즈 감지 모드로 거북목과 자세를 분석합니다.
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🎯 분석 항목</Text>
+          <View style={styles.testItems}>
+            <Text style={styles.testItem}>• 측면 랜드마크 감지</Text>
+            <Text style={styles.testItem}>• CVA (목-어깨 각도) 측정</Text>
+            <Text style={styles.testItem}>• 거북목 진단</Text>
+            <Text style={styles.testItem}>• 방향별 측면 분석</Text>
+            <Text style={styles.testItem}>• 실시간 자세 피드백</Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🔧 측면 랜드마크</Text>
+          <Text style={styles.description}>
+            측면에서 잘 보이는 랜드마크들만 사용합니다:
+          </Text>
+          <View style={styles.landmarkList}>
+            <Text style={styles.landmarkItem}>• 머리: 코, 왼쪽/오른쪽 귀</Text>
+            <Text style={styles.landmarkItem}>• 어깨: 왼쪽/오른쪽 어깨</Text>
+            <Text style={styles.landmarkItem}>• 팔: 팔꿈치, 손목</Text>
+            <Text style={styles.landmarkItem}>• 몸통: 엉덩이</Text>
+            <Text style={styles.landmarkItem}>• 다리: 무릎, 발목</Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🎨 시각화 특징</Text>
+          <View style={styles.visualFeatures}>
+            <Text style={styles.featureItem}>• 측면 전용 색상 코딩</Text>
+            <Text style={styles.featureItem}>• CVA 연결선 강조 (검은색)</Text>
+            <Text style={styles.featureItem}>• 거북목 시 🐢 이모티콘 표시</Text>
+            <Text style={styles.featureItem}>• 실시간 CVA 각도 표시</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.startButton}
+          onPress={() => setIsCameraActive(true)}
+        >
+          <Text style={styles.startButtonText}>측면 포즈 감지 시작</Text>
+        </TouchableOpacity>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📝 사용 가이드</Text>
+          <Text style={styles.guideText}>
+            1. 측면을 향해 서서 포즈를 취하세요{'\n'}
+            2. CVA 각도가 50도 이상 유지되는지 확인하세요{'\n'}
+            3. 거북목 경고(🐢)가 나타나지 않도록 주의하세요{'\n'}
+            4. 좌측면/우측면 자동 감지를 확인하세요{'\n'}
+            5. 실시간 피드백을 통해 자세를 교정하세요
+          </Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
   },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
+  container: {
+    flex: 1,
+  },
+  content: {
+    padding: 20,
+  },
+  header: {
+    marginBottom: 30,
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  section: {
+    marginBottom: 25,
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  description: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  testItems: {
+    marginTop: 10,
+  },
+  testItem: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 5,
+  },
+  landmarkList: {
+    marginTop: 10,
+  },
+  landmarkItem: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 3,
+  },
+  visualFeatures: {
+    marginTop: 10,
+  },
+  featureItem: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 5,
+  },
+  startButton: {
+    backgroundColor: '#FF6B6B',
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    alignItems: 'center',
+    marginVertical: 20,
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  startButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  guideText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  stopButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    backgroundColor: 'rgba(255,0,0,0.8)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    zIndex: 1000,
+  },
+  stopButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });

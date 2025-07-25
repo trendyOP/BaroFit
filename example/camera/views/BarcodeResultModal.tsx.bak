@@ -1,0 +1,573 @@
+/**
+ * app/camera/views/BarcodeResultModal.tsx
+ * 
+ * 바코드 스캔 결과를 표시하는 모달 컴포넌트
+ */
+import React, { useEffect, useState } from 'react';
+import { View, Modal, ActivityIndicator, Image, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
+import { Text } from '~/components/ui/text';
+import { Button } from '~/components/ui/button';
+import { foodTypes } from 'fitlyever-ts-rest-contract';
+import { Check, X, ArrowRight, AlertTriangle, ShoppingBag, Barcode, Info, ImageIcon, CameraIcon, Utensils } from 'lucide-react-native';
+import { getFoodByBarcode, convertToFoodItem } from '~/services/foodService';
+import { client } from '~/lib/api';
+import { foodIconMap } from '~/lib/iconMap';
+import { Alert, AlertTitle, AlertDescription } from '~/components/ui/alert';
+import { useAuth } from '~/contexts/AuthContext';
+import { useSelectImage } from '~/hooks/useSelectImage';
+import { useUploadFoodProductPhotoMutation, useGetFoodProductPhotosQuery } from '~/hooks/useFile';
+
+interface BarcodeResultModalProps {
+  isVisible: boolean;
+  barcode: string | null;
+  onClose: () => void;
+  onSelectFood?: (food: foodTypes.Food) => void;
+}
+
+/**
+ * 바코드 스캔 결과 모달 컴포넌트
+ */
+export default function BarcodeResultModal({
+  isVisible,
+  barcode,
+  onClose,
+  onSelectFood
+}: BarcodeResultModalProps) {
+  // 상태 관리
+  const { user, token } = useAuth();
+  const [food, setFood] = useState<foodTypes.Food | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [showAlert, setShowAlert] = useState(false);
+  // const { mutate: mutateUploadFoodImage } = client.food.uploadFoodProductPhotos.useMutation();
+  const { mutate: mutateUploadFoodImage, isLoading: isUploadFoodImageLoading } = useUploadFoodProductPhotoMutation()
+  const [ showUploadFoodImageUI, setShowUploadFoodImageUI ] = useState(false);
+  
+  const uploadFoodImage = (base64: string, foodImageType: foodTypes.FoodProductPhotoType) => {
+    if (barcode && token && base64) {
+      mutateUploadFoodImage({
+        userId: user?.id ?? "",
+        barcode: barcode ?? '',
+        photoType: foodImageType,
+        base64: base64
+      },{
+        onSuccess: () => {
+          refetchFoodProductPhotos();
+        },
+        onError: (error) => {
+          console.log('식품 이미지 업로드 실패:', JSON.stringify(error, null, 2));
+        }
+      })
+      // mutateUploadFoodImage({
+      //   token: token ?? '',
+      //   body: {
+      //     photo: base64,
+      //     barcode: barcode ?? '',
+      //     photo_type: foodImageType
+      //   }
+      // },{
+      //   onSuccess: () => {
+      //     refetchFoodProductPhotos();
+      //   },
+      //   onError: (error) => {
+      //     console.log('식품 이미지 업로드 실패:', JSON.stringify(error, null, 2));
+      //   }
+      // })
+    }
+  }
+  const { pickImage: pickImageFront, takePhoto: takePhotoFront } = useSelectImage(
+    (base64: string) => {
+      uploadFoodImage(base64, "front");
+    }
+  )
+  const { pickImage: pickImageBack, takePhoto: takePhotoBack } = useSelectImage(
+    (base64: string) => {
+      uploadFoodImage(base64, "back");
+    }
+  )
+  const { pickImage: pickImageNutrition, takePhoto: takePhotoNutrition } = useSelectImage(
+    (base64: string) => {
+      uploadFoodImage(base64, "nutrition");
+    }
+  )
+
+  const {
+    data: foodProductPhotos,
+    isLoading: isFoodProductPhotosLoading,
+    error: foodProductPhotosError,
+    refetch: refetchFoodProductPhotos
+  } = useGetFoodProductPhotosQuery(user?.id ?? "", barcode ?? "")
+
+  // const {
+  //   data: foodProductPhotos,
+  //   isLoading: isFoodProductPhotosLoading,
+  //   error: foodProductPhotosError,
+  //   refetch: refetchFoodProductPhotos
+  // } = client.food.getFoodProductPhotos.useQuery(
+  //   ["food_product_photos", barcode],
+  //   {
+  //     query: {
+  //       barcode: barcode ?? ''
+  //     },
+  //     token: token ?? ''
+  //   },
+  //   {
+  //     enabled: !!barcode && !!isVisible && !!token
+  //   }
+    
+  // )
+  
+  // API 호출에 필요한 쿼리
+  const { 
+    data: barcodeFoodInfo, 
+    isLoading: isBarcodeFoodInfoLoading, 
+    error: barcodeFoodInfoError, 
+    refetch: refetchBarcodeFoodInfo 
+  } = client.food.getFoodIdWithBarcode.useQuery(
+    ["food_by_barcode", barcode],
+    {
+      query: {
+        barcode: barcode ?? ''
+      }
+    },
+    {
+      enabled: !!barcode && !!isVisible      
+    }
+  );
+
+  const { 
+    data: foodInfo, 
+    isLoading: isFoodInfoLoading, 
+    refetch: refetchFoodInfo 
+  } = client.food.getFood.useQuery(
+    ["food", barcodeFoodInfo?.body.food_id, barcodeFoodInfo?.body.serving_id, barcodeFoodInfo?.body.food_source],
+    {
+      query: {
+        food_id: barcodeFoodInfo?.body.food_id,
+        serving_id: barcodeFoodInfo?.body.serving_id,
+        food_source: barcodeFoodInfo?.body.food_source as "mfds"
+      }
+    },
+    {
+      enabled: false
+    }
+  );
+
+  const isLoading = isBarcodeFoodInfoLoading || isFoodInfoLoading;
+  
+  // 모달이 표시될 때마다 에러 상태 초기화
+  useEffect(() => {
+    if (isVisible) {
+      console.log('모달 표시됨, 상태 초기화');
+      setError(null);
+    }
+  }, [isVisible]);
+  
+  // 바코드 정보가 있으면 식품 정보 가져오기
+  useEffect(() => {
+    if (barcodeFoodInfo?.body) {
+      console.log('바코드로 음식 정보 찾음, 세부 정보 요청');
+      refetchFoodInfo();
+    }
+  }, [barcodeFoodInfo?.body, refetchFoodInfo]);
+
+  // 식품 정보가 있으면 상태 업데이트
+  useEffect(() => {
+    if (foodInfo) {
+      console.log('음식 세부 정보 받음');
+      setFood(foodInfo.body);
+    }
+  }, [foodInfo]);
+
+  // API 에러 메시지 추출
+  useEffect(() => {
+    if (barcodeFoodInfoError) {
+      console.log('바코드 음식 정보 에러:', barcodeFoodInfoError);
+      // @ts-ignore - 에러 타입이 정확하지 않을 수 있으므로 무시
+      const errorBody = barcodeFoodInfoError.body || {};
+      
+      // 디버깅을 위한 로그 추가
+      console.log('에러 본문:', JSON.stringify(errorBody));
+      
+      if (errorBody.error) {
+        console.log('에러 메시지 설정:', errorBody.error);
+        setError(errorBody.error);
+      } else {
+        console.log('기본 에러 메시지 설정');
+        setError('음식 정보를 가져오는 중 오류가 발생했습니다.');
+      }
+    }
+  }, [barcodeFoodInfoError]);
+  
+  // 상태 디버깅 로그
+  useEffect(() => {
+    console.log('모달 상태:', { 
+      isVisible, 
+      isLoading, 
+      hasError: !!error || !!barcodeFoodInfoError,
+      errorMessage: error,
+      hasFood: !!food
+    });
+  }, [isVisible, isLoading, error, barcodeFoodInfoError, food]);
+  
+  // 음식 선택 핸들러
+  const handleSelectFood = () => {
+    if (food && onSelectFood) {
+      onSelectFood(food);
+    }
+    onClose();
+  };
+  
+  // 요청하기 버튼 클릭 핸들러
+  const handleRequestFood = () => {
+    setShowUploadFoodImageUI(true);
+    // 모달 닫기
+    // onClose();
+    
+    // 알림 표시
+    // setShowAlert(true);
+    // console.log('식품 추가 요청 알림 표시');
+  };
+  
+  // 알림 닫기 핸들러
+  const handleCloseAlert = () => {
+    console.log('식품 추가 요청 알림 닫기');
+    setShowAlert(false);
+  };
+
+  // 에러가 있으면 로딩 상태와 상관없이 에러 UI 표시
+  if ((error || barcodeFoodInfoError) && isVisible) {
+    if (!showUploadFoodImageUI) {
+      return (
+        <Modal
+          visible={isVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={onClose}
+        >
+          <View className="flex-1 justify-center items-center bg-black/60">
+            <View className="bg-white rounded-2xl p-6 w-11/12 max-w-sm">
+              <View className="items-center mb-4">
+                <ShoppingBag size={32} color="#3b82f6" />
+              </View>
+              
+              <Text className="text-lg font-medium text-center mb-2">
+                새로운 제품을 발견했어요!
+              </Text>
+              
+              <Text className="text-sm text-gray-500 text-center mb-2">
+                300만개 이상의 제품 중에서 아직 등록되지 않은 특별한 제품이네요.
+              </Text>
+  
+              <View className="bg-blue-50 rounded-lg p-4 mb-6">
+                <View className="flex-row items-center mb-2">
+                  <Barcode size={16} color="#3b82f6" />
+                  <Text className="ml-2 text-sm text-blue-600 font-medium">
+                    {barcode}
+                  </Text>
+                </View>
+                <Text className="text-xs text-blue-500">
+                  이 제품의 첫 발견자가 되어주세요!
+                </Text>
+              </View>
+              
+              <View className="flex-row justify-center gap-3">
+                <Button 
+                  className="bg-gray-100 flex-1"
+                  variant="outline"
+                  onPress={onClose}
+                >
+                  <Text className="text-gray-700 font-medium">닫기</Text>
+                </Button>
+                <Button 
+                  className="flex-1 bg-blue-500"
+                  onPress={handleRequestFood}
+                >
+                  <Text className="text-white font-medium">제품 등록하기</Text>
+                </Button>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      );
+    } else {
+      return (
+        <Modal
+          visible={isVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {
+            setShowUploadFoodImageUI(false);
+            onClose();
+          }}
+        >
+          <View className="flex-1 justify-center items-center bg-black/60">
+          <View className="bg-white rounded-2xl p-6 w-11/12 max-w-sm">
+            {/* 헤더와 닫기 버튼 */}
+            <View className="flex-row justify-between items-center mb-4">
+              <Barcode size={20} color="#4b5563" />
+              <Text className="text-lg font-bold">{barcode}</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowUploadFoodImageUI(false);
+                  onClose();
+                }}
+                className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center"
+              >
+                <X size={20} color="#4b5563" />
+              </TouchableOpacity>
+            </View>
+
+              <View className="flex-row gap-2">
+                {
+                  [{
+                    type: "front",
+                    name: "제품 앞면",
+                    image: foodProductPhotos?.front,
+                    pickImage: pickImageFront,
+                    takePhoto: takePhotoFront
+                  }, {
+                    type: "back",
+                    name: "제품 뒷면",
+                    image: foodProductPhotos?.back,
+                    pickImage: pickImageBack,
+                    takePhoto: takePhotoBack
+                  }, {
+                    type: "nutrition",
+                    name: "영양 정보",
+                    image: foodProductPhotos?.nutrition,
+                    pickImage: pickImageNutrition,
+                    takePhoto: takePhotoNutrition
+                  }].map((item) => {
+                    return (
+                      <View className="flex-1 justify-center items-center border border-gray-200 rounded-xl divide-y divide-gray-200" key={item.type}>
+                        <View className="w-full bg-gray-100 rounded-t-xl">
+                          {item.image ? 
+                          <Image
+                            source={{ uri: item.image }}
+                            style={{ width: '100%', aspectRatio: 1, borderTopLeftRadius: 10, borderTopRightRadius: 10 }}
+                          /> : 
+                          <View className="w-full aspect-square bg-gray-100 rounded-xl justify-center items-center">
+                            <Utensils size={32} color="#4b5563" />
+                          </View>}
+                        </View>
+                        <Text className="text-sm text-gray-500 py-1 font-medium">{item.name}</Text>
+                        <View className="w-full flex-row justify-center items-center">
+                          <TouchableOpacity onPress={item.takePhoto} className="w-1/2 rounded-b-xl p-2 justify-center items-center">
+                            <CameraIcon size={18} color="#4b5563" />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={item.pickImage} className="w-1/2 rounded-b-xl p-2 justify-center items-center">
+                            <ImageIcon size={18} color="#4b5563" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )
+                  })
+                }
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )
+    }
+  }
+  
+  // 로딩 상태 표시 (에러가 없을 때만)
+  if (isLoading && !error && !barcodeFoodInfoError && isVisible) {
+    return (
+      <Modal
+        visible={isVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={onClose}
+      >
+        <View className="flex-1 justify-center items-center bg-black/60">
+          <View className="bg-white rounded-2xl p-6 w-11/12 max-w-sm items-center">
+            <Barcode size={32} color="#4b5563" className="mb-4" />
+            <Text className="text-lg font-medium text-center mb-4">
+              바코드 검색 중...
+            </Text>
+            <ActivityIndicator size="large" color="#3b82f6" />
+            <Text className="text-sm text-gray-500 mt-4 text-center">
+              {barcode}
+            </Text>
+            <Button 
+              variant="ghost"
+              onPress={onClose}
+              className="mt-6"
+            >
+              <Text className="text-gray-600">검색 취소</Text>
+            </Button>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+  
+  // 결과 표시 (음식 정보가 있을 때만)
+  if (food && isVisible) {
+    return (
+      <Modal
+        visible={isVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={onClose}
+      >
+        <View className="flex-1 justify-center items-center bg-black/60">
+          <View className="bg-white rounded-2xl p-6 w-11/12 max-w-sm">
+            {/* 헤더와 닫기 버튼 */}
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="text-lg font-bold">바코드 스캔 결과</Text>
+              <TouchableOpacity
+                onPress={onClose}
+                className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center"
+              >
+                <X size={20} color="#4b5563" />
+              </TouchableOpacity>
+            </View>
+            
+            {/* 바코드 정보 */}
+            <View className="flex-row items-center mb-4 p-2 bg-gray-50 rounded-lg">
+              <Barcode size={20} color="#4b5563" />
+              <Text className="ml-2 text-sm text-gray-500 flex-1">
+                {barcode}
+              </Text>
+            </View>
+            
+            {/* 음식 정보 */}
+            <View className="mb-6">
+              {/* 음식 아이콘과 이름 */}
+              <View className="flex-row items-center mb-3">
+                <View className="w-14 h-14 bg-orange-50 rounded-full items-center justify-center mr-3">
+                  <Image
+                    source={foodIconMap[food.emoji as keyof typeof foodIconMap ?? 'dish']}
+                    style={{ width: 32, height: 32 }}
+                    resizeMode="contain"
+                  />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base font-bold mb-1">{food.food_name}</Text>
+                  <Text className="text-sm text-gray-500">
+                    {food.food_type === 'Brand' && food.brand_name 
+                      ? food.brand_name 
+                      : food.food_sub_categories?.food_sub_category?.join(', ') || '기타'
+                    }
+                  </Text>
+                </View>
+              </View>
+              
+              {/* 영양 정보 요약 */}
+              <View className="p-3 bg-gray-50 rounded-lg">
+                <Text className="text-sm font-medium mb-2">영양 정보</Text>
+                <View className="flex-row justify-between">
+                  <View className="items-center">
+                    <Text className="text-base font-bold">{food.calories}</Text>
+                    <Text className="text-xs text-gray-500">칼로리(kcal)</Text>
+                      </View>
+                      <View className="items-center">
+                        <Text className="text-base font-bold">{food.carbohydrate}g</Text>
+                        <Text className="text-xs text-gray-500">탄수화물</Text>
+                      </View>
+                      <View className="items-center">
+                        <Text className="text-base font-bold">{food.protein}g</Text>
+                        <Text className="text-xs text-gray-500">단백질</Text>
+                      </View>
+                      <View className="items-center">
+                        <Text className="text-base font-bold">{food.fat}g</Text>
+                        <Text className="text-xs text-gray-500">지방</Text>
+                      </View>
+                </View>
+              </View>
+            </View>
+            
+            {/* 버튼 영역 */}
+            <View className="flex-row justify-between">
+              <Button 
+                variant="outline"
+                className="flex-1 mr-2"
+                onPress={onClose}
+              >
+                <Text className="text-gray-700">취소</Text>
+              </Button>
+              <Button 
+                className="flex-1 bg-blue-500"
+                onPress={handleSelectFood}
+                disabled={!food}
+              >
+                <Text className="text-white font-medium">음식 선택</Text>
+              </Button>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+  
+  // 모달이 표시되어야 하지만 다른 상태가 없는 경우 (진행 중인 작업이 없거나 데이터도 없는 경우)
+  if (isVisible) {
+    return (
+      <Modal
+        visible={isVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={onClose}
+      >
+        <View className="flex-1 justify-center items-center bg-black/60">
+          <View className="bg-white rounded-2xl p-6 w-11/12 max-w-sm items-center">
+            <Text className="text-lg font-medium text-center mb-4">
+              바코드를 스캔해주세요
+            </Text>
+            <Button 
+              variant="outline"
+              onPress={onClose}
+              className="mt-4"
+            >
+              <Text className="text-gray-700">닫기</Text>
+            </Button>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+  
+  // 모달이 표시되지 않는 경우, 알림이 표시될 수 있음
+  if (!isVisible) {
+    if (showAlert) {
+      return (
+        <TouchableWithoutFeedback onPress={handleCloseAlert}>
+          <View className="absolute top-0 left-0 right-0 bottom-0 z-40 flex justify-start">
+            <View className="absolute top-4 left-4 right-4 z-50">
+              <TouchableWithoutFeedback>
+                <View>
+                  <Alert 
+                    icon={Info} 
+                    iconSize={22} 
+                    variant="default"
+                    className="bg-blue-50 border-blue-300"
+                  >
+                    <View className="flex-row justify-between items-center">
+                      <View className="flex-1">
+                        <AlertTitle className="text-blue-800">식품 추가 요청</AlertTitle>
+                        <AlertDescription className="text-blue-700">
+                          {barcode && `바코드 ${barcode}에 해당하는 `}제품 등록 요청이 접수되었습니다. 곧 처리될 예정입니다.
+                        </AlertDescription>
+                      </View>
+                      <TouchableOpacity 
+                        onPress={handleCloseAlert}
+                        className="p-1 rounded-full bg-blue-100"
+                      >
+                        <X size={16} color="#1e40af" />
+                      </TouchableOpacity>
+                    </View>
+                  </Alert>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      );
+    }
+  }
+  
+  // 그 외의 모든 경우 null 반환
+  return null;
+} 
