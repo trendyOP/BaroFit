@@ -151,6 +151,8 @@ export function SidePoseDetectionMode({ isActive, router, showFeedback }: SidePo
   const defaultRouter = useRouter();
   const currentRouter = router || defaultRouter;
 
+
+
   // Native Plugin Hook 활성화
   const { landmarks, frameWidth, frameHeight } = usePoseLandmarks();
   const { orientation } = useBodyOrientation();
@@ -185,6 +187,8 @@ export function SidePoseDetectionMode({ isActive, router, showFeedback }: SidePo
   
   // 진동 및 소리 인터벌 ID를 저장하는 ref
   const feedbackIntervalRef = useRef<number | null>(null);
+
+
 
   // 사운드 로딩
   useEffect(() => {
@@ -582,6 +586,8 @@ export function SidePoseDetectionMode({ isActive, router, showFeedback }: SidePo
                 );
               })}
             </View>
+
+
             {/* 거북이 이모티콘: 거북목일 때만 왼쪽 위에 고정 */}
             {isTurtle && (
               <View style={{ position: 'absolute', left: 24, top: 50, zIndex: 20 }}>
@@ -664,7 +670,7 @@ export function SidePoseDetectionMode({ isActive, router, showFeedback }: SidePo
           </View>
           {/* 거북이 이모티콘: 거북목일 때만 왼쪽 위에 고정 */}
           {isTurtle && (
-            <View style={{ position: 'absolute', left: 24, top: 50, zIndex: 20 }}>
+            <View style={{ position: 'absolute', left: 24, top: 120, zIndex: 20 }}>
               <Image source={require('@/assets/images/tutleneck-icon.png')} style={{ width: 60, height: 60 }} />
             </View>
           )}
@@ -681,7 +687,18 @@ export function SidePoseDetectionMode({ isActive, router, showFeedback }: SidePo
             )}
           </View>
           */}
-          {/* 정면 모드로 전환 버튼 */}
+          {/* 후면 카메라 전환 버튼 - 우상단 */}
+          <TouchableOpacity
+            style={styles.rearCameraButton}
+            onPress={() => setCameraPosition(prev => prev === 'front' ? 'back' : 'front')}
+          >
+            <Ionicons name="camera" size={20} color="#FFFFFF" />
+            <Text style={styles.rearCameraButtonText}>
+              {cameraPosition === 'front' ? '후면' : '전면'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* 정면 모드로 전환 버튼 - 좌상단 */}
           <TouchableOpacity
             style={styles.switchButton}
             onPress={() => {
@@ -746,10 +763,28 @@ const styles = StyleSheet.create({
     color: '#4ECDC4',
     marginBottom: 4,
   },
-  switchButton: {
+  rearCameraButton: {
     position: 'absolute',
     top: 60,
     right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    zIndex: 10,
+  },
+  rearCameraButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: 4,
+  },
+  switchButton: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -895,4 +930,5 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
   },
+
 }); 

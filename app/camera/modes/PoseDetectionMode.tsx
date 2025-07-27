@@ -31,8 +31,10 @@ export function PoseDetectionMode({ isActive, showFeedbackOverlay = true, router
   const device = useCameraDevice(cameraPosition);
   const [isReady, setIsReady] = useState(false);
   const [camLayout, setCamLayout] = useState<CameraLayout>({ x: 0, y: 0, width: 0, height: 0 });
-  const defaultRouter = useRouter();
+  const defaultRouter = useRouter(); // Use default router if not passed as prop
   const currentRouter = router || defaultRouter;
+
+
 
   // 카메라 및 포즈 감지 훅
   const { landmarks, frameWidth, frameHeight } = usePoseLandmarks();
@@ -43,6 +45,8 @@ export function PoseDetectionMode({ isActive, showFeedbackOverlay = true, router
   // 최신 analysis 값을 저장하는 ref
   const analysisRef = useRef(analysis);
   analysisRef.current = analysis; // 매번 최신값으로 업데이트
+
+
 
   // 1초마다 현재 자세 분석 결과를 Context로 보냄
   useEffect(() => {
@@ -129,6 +133,8 @@ export function PoseDetectionMode({ isActive, showFeedbackOverlay = true, router
     
     return getConnectionColor(startIndex, endIndex);
   };
+
+
 
   useEffect(() => {
     if (!hasPermission) {
@@ -284,6 +290,8 @@ export function PoseDetectionMode({ isActive, showFeedbackOverlay = true, router
               })}
             </Svg>
 
+
+
             {/* 경고 아이콘 오버레이 */}
             {analysis?.kinematicChain && (
               <>
@@ -378,7 +386,18 @@ export function PoseDetectionMode({ isActive, showFeedbackOverlay = true, router
             })}
           </Svg>
 
-          {/* 측면 자세 감지로 전환 버튼 - 맨 위 */}
+          {/* 후면 카메라 전환 버튼 - 우상단 */}
+          <TouchableOpacity 
+            style={styles.rearCameraButton}
+            onPress={() => setCameraPosition(prev => prev === 'front' ? 'back' : 'front')}
+          >
+            <Ionicons name="camera" size={20} color="#FFFFFF" />
+            <Text style={styles.rearCameraButtonText}>
+              {cameraPosition === 'front' ? '후면' : '전면'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* 측면 자세 감지로 전환 버튼 - 좌상단 */}
           <TouchableOpacity 
             style={styles.sideDetectionButton}
             onPress={() => {
@@ -542,10 +561,28 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 12,
   },
-  sideDetectionButton: {
+  rearCameraButton: {
     position: 'absolute',
     top: 60,
     right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    zIndex: 10,
+  },
+  rearCameraButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: 4,
+  },
+  sideDetectionButton: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -577,4 +614,5 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
   },
+
 }); 
