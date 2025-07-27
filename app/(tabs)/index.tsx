@@ -6,6 +6,15 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { Dimensions, Image, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
+const POSTURE_TYPE_INFO: Record<string, { name: string; description: string; color: string }> = {
+  'A형': { name: '골반-어깨 불균형', description: '골반이 기울고 어깨가 회전된 상태', color: '#FF6B6B' },
+  'B형': { name: '거북목형', description: '머리가 앞으로 나오고 등이 굽은 상태', color: '#4ECDC4' },
+  'C형': { name: '편측 압박형', description: '한쪽으로 치우친 불균형 자세', color: '#45B7D1' },
+  'D형': { name: '군인형', description: '과도하게 허리를 편 긴장 상태', color: '#96CEB4' },
+  'E형': { name: '정상', description: '균형잡힌 이상적인 자세', color: '#34C759' },
+  '미분류': { name: '미분류', description: '자세 유형을 분석 중입니다', color: '#8E8E93' },
+};
+
 export default function HomeScreen() {
   const [realTimeFeedback, setRealTimeFeedback] = React.useState(true);
   const router = useRouter();
@@ -35,6 +44,8 @@ export default function HomeScreen() {
     minute: '2-digit',
     hour12: false,
   }).replace(/\./g, '.').replace(/ /g, ' ').trim() : '--. --. -- --:--';
+  const latestPosturePattern = latestPose ? latestPose.posturePattern : '미분류';
+  const postureInfo = POSTURE_TYPE_INFO[latestPosturePattern] || POSTURE_TYPE_INFO['미분류'];
 
   return (
     <View style={styles.container}>
@@ -91,9 +102,9 @@ export default function HomeScreen() {
 
         {/* Status Message Card */}
         <View style={styles.statusMessageCard}>
-          <Text style={styles.properPostureDescription}>
-            {latestPose ? `최근 자세 측정 시간: ${latestDate}` : '자세 측정이 아직 시작되지 않았습니다.'}
-          </Text>
+          <Text style={styles.postureTypeText}>최근 감지된 유형: </Text>
+          <Text style={[styles.postureTypeValue, { color: postureInfo.color }]}>{postureInfo.name}</Text>
+          <Text style={styles.postureTypeDescription}>{postureInfo.description}</Text>
         </View>
 
         {/* Real-time Feedback Toggle */}
@@ -238,12 +249,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     flex: 1,
   },
-  properPostureDescription: {
-    fontSize: 14,
-    color: '#8E8E93',
-    lineHeight: 30, // 높이 조절을 위해 lineHeight를 줄임
-    textAlign: 'center',
-  },
   properPostureButtonCard: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 12,
@@ -311,5 +316,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    alignItems: 'center',
+  },
+  postureTypeText: {
+    fontSize: 14,
+    color: '#8E8E93',
+    marginBottom: 4,
+  },
+  postureTypeValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+  postureTypeDescription: {
+    fontSize: 14,
+    color: '#333333',
+    textAlign: 'center',
   },
 });
