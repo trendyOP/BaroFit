@@ -9,17 +9,19 @@ import { usePoseAnalysis } from '@/app/camera/hooks/usePoseAnalysis';
 import { usePoseLandmarks } from '@/app/camera/hooks/usePoseLandmarks';
 import { poseLandmarker } from '@/app/camera/utils/frame-processors';
 import {
-  generatePoseConnections,
-  getLandmarkColor,
-  transformPoint,
-  type CameraLayout
+    generatePoseConnections,
+    getConnectionColor,
+    getLandmarkColor,
+    transformPoint,
+    type CameraLayout
 } from '@/app/camera/utils/pose-utils';
 
 interface PoseDetectionModeProps {
   isActive: boolean;
+  showFeedbackOverlay?: boolean;
 }
 
-export function PoseDetectionMode({ isActive }: PoseDetectionModeProps) {
+export function PoseDetectionMode({ isActive, showFeedbackOverlay = true }: PoseDetectionModeProps) {
   const { hasPermission, requestPermission } = useCameraPermission();
   const [cameraPosition, setCameraPosition] = useState<'front' | 'back'>('front');
   const device = useCameraDevice(cameraPosition);
@@ -71,6 +73,44 @@ export function PoseDetectionMode({ isActive }: PoseDetectionModeProps) {
     return generatePoseConnections(transformedLandmarks);
   }, [transformedLandmarks]);
 
+  // 문제가 있는 연결선 계산 (오버레이 원의 색상 기반)
+  const problematicConnections = useMemo(() => {
+    const problematic: string[] = [];
+    
+    if (analysis?.kinematicChain) {
+      const { shoulder, pelvic } = analysis.kinematicChain;
+      
+      // 어깨 대칭 문제가 있고 빨간색 원이 표시될 때만 연결선을 빨간색으로
+      const hasShoulderIssue = analysis.shoulderSymmetry < 80 || shoulder.issues.length > 0;
+      const shoulderIsRed = hasShoulderIssue && analysis.shoulderSymmetry < 80;
+      
+      if (shoulderIsRed) {
+        problematic.push('11-12'); // LEFT_SHOULDER - RIGHT_SHOULDER
+      }
+      
+      // 골반 문제가 있고 빨간색 원이 표시될 때만 연결선을 빨간색으로
+      const hasPelvicIssue = !pelvic.isLevel || pelvic.issues.length > 0;
+      const pelvicIsRed = hasPelvicIssue && !pelvic.isLevel;
+      
+      if (pelvicIsRed) {
+        problematic.push('23-24'); // LEFT_HIP - RIGHT_HIP
+      }
+    }
+    
+    return problematic;
+  }, [analysis]);
+
+  // 연결선 색상 결정 함수
+  const getConnectionColorWithAnalysis = (startIndex: number, endIndex: number) => {
+    const connectionKey = `${Math.min(startIndex, endIndex)}-${Math.max(startIndex, endIndex)}`;
+    
+    if (problematicConnections.includes(connectionKey)) {
+      return '#FF6B6B'; // 문제가 있는 연결선만 빨간색
+    }
+    
+    return getConnectionColor(startIndex, endIndex);
+  };
+
   useEffect(() => {
     if (!hasPermission) {
       requestPermission().then((granted) => {
@@ -117,22 +157,28 @@ export function PoseDetectionMode({ isActive }: PoseDetectionModeProps) {
             y1={line.start.y}
             x2={line.end.x}
             y2={line.end.y}
-            stroke={line.color}
+            stroke={getConnectionColorWithAnalysis(line.startIndex, line.endIndex)}
             strokeWidth={3}
           />
         ))}
-        {transformedLandmarks.map((point: any, index: number) => (
-          <Circle
-            key={`circle-${index}`}
-            cx={point.x}
-            cy={point.y}
-            r={6}
-            fill={getLandmarkColor(point.index)}
-            stroke="white"
-            strokeWidth={1}
-            opacity={point.visibility ? Math.max(point.visibility, 0.6) : 0.8}
-          />
-        ))}
+        {transformedLandmarks.map((point: any, index: number) => {
+          // 얼굴 랜드마크 (인덱스 0-10)는 그리지 않음
+          if (point.index >= 0 && point.index <= 10) {
+            return null;
+          }
+          return (
+            <Circle
+              key={`circle-${index}`}
+              cx={point.x}
+              cy={point.y}
+              r={6}
+              fill={getLandmarkColor(point.index)}
+              stroke="white"
+              strokeWidth={1}
+              opacity={point.visibility ? Math.max(point.visibility, 0.6) : 0.8}
+            />
+          );
+        })}
       </Svg>
       
       <PoseFeedbackOverlay
@@ -142,6 +188,7 @@ export function PoseDetectionMode({ isActive }: PoseDetectionModeProps) {
         devicePosition={device?.position as 'front' | 'back' || 'front'}
         frameWidth={frameWidth}
         frameHeight={frameHeight}
+        showDetails={showFeedbackOverlay}
       />
 
       <TouchableOpacity

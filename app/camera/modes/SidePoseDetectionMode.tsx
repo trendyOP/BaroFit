@@ -6,14 +6,14 @@
  * - 왼쪽/오른쪽 방향 판단 후 해당 방향 랜드마크만 표시
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission, useFrameProcessor } from 'react-native-vision-camera';
 
 import { usePoseLandmarks } from '@/app/camera/hooks/usePoseLandmarks';
 import { poseLandmarker } from '@/app/camera/utils/frame-processors';
 import {
-    transformPoint,
-    type CameraLayout
+  transformPoint,
+  type CameraLayout
 } from '@/app/camera/utils/pose-utils';
 
 // 고도화된 방향 판단 함수 (x, z 좌표 모두 활용)
@@ -195,13 +195,13 @@ export function SidePoseDetectionMode({ isActive }: SidePoseDetectionModeProps) 
     }
   }, [sideDirection, sideAngle, cva, isTurtle, actualLandmarks]);
 
-  // 해당 방향의 랜드마크 인덱스만 남김
+  // 변환된 랜드마크 필터링 (측면 방향에 따라 관련 랜드마크만 선택)
   const filteredLandmarks = useMemo(() => {
     if (!actualLandmarks || actualLandmarks.length === 0 || !sideDirection) return [];
     // MediaPipe/MoveNet 확장 인덱스 기준
-    const leftIndices = [3, 11, 13, 15, 23, 25, 27];
-    const rightIndices = [4, 12, 14, 16, 24, 26, 28];
-    const baseIndices = [0];
+    const leftIndices = [3, 11, 23, 25, 27]; // LEFT_EAR, LEFT_SHOULDER, LEFT_HIP, LEFT_KNEE, LEFT_ANKLE
+    const rightIndices = [4, 12, 24, 26, 28]; // RIGHT_EAR, RIGHT_SHOULDER, RIGHT_HIP, RIGHT_KNEE, RIGHT_ANKLE
+    const baseIndices = [0]; // NOSE
     const indices = sideDirection === 'left' ? baseIndices.concat(leftIndices) : baseIndices.concat(rightIndices);
     // index 필드 포함
     return indices.map(idx => {
@@ -230,24 +230,27 @@ export function SidePoseDetectionMode({ isActive }: SidePoseDetectionModeProps) 
     });
   }, [filteredLandmarks, camLayout, device?.position, frameWidth, frameHeight]);
 
-  // 측면 연결선 정의 (MediaPipe 인덱스 기준)
+  // 측면 연결선 정의
   const sideConnections = useMemo(() => {
-    // 연결선 정의: [start, end]
+    if (!sideDirection) return [];
+
     const lines = sideDirection === 'left'
       ? [
-          [0, 3], [3, 11], [11, 13], [13, 15], // 얼굴-어깨-팔
-          [11, 23], [23, 25], [25, 27]         // 어깨-엉덩이-무릎-발목
+          [0, 3], [3, 11],
+          [11, 23], [23, 25], [25, 27]
         ]
       : [
-          [0, 4], [4, 12], [12, 14], [14, 16],
+          [0, 4], [4, 12],
           [12, 24], [24, 26], [26, 28]
         ];
-    // filteredLandmarks의 index와 transformedLandmarks의 idx 매핑
+
     const idxMap: Record<number, number> = {};
     (filteredLandmarks as any[]).forEach((lm, i) => {
       idxMap[lm.index] = i;
     });
-    // 실제 화면 좌표 연결선 생성
+    
+    const problemConnections = sideDirection === 'left' ? ['3-11', '11-23'] : ['4-12', '12-24'];
+
     return lines.map(([startIdx, endIdx]) => {
       const start = idxMap[startIdx];
       const end = idxMap[endIdx];
@@ -257,16 +260,16 @@ export function SidePoseDetectionMode({ isActive }: SidePoseDetectionModeProps) 
       const endPoint = transformedLandmarks[end];
       if (!startPoint || !endPoint) return null;
       
-      // CVA 계산에 사용되는 귀-어깨 연결선만 검은색
-      const isCVALine = ((startIdx === 3 || startIdx === 4) && (endIdx === 11 || endIdx === 12)); // ear to shoulder
+      const connectionKey = `${Math.min(startIdx, endIdx)}-${Math.max(startIdx, endIdx)}`;
+      const isProblemConnection = isTurtle && problemConnections.includes(connectionKey);
       
       return {
         start: startPoint,
         end: endPoint,
-        color: isCVALine ? '#000000' : '#888' // CVA 선은 검은색, 나머지는 회색
+        color: isProblemConnection ? '#FF6B6B' : '#87CEEB'
       };
     }).filter(Boolean);
-  }, [filteredLandmarks, transformedLandmarks, sideDirection]);
+  }, [filteredLandmarks, transformedLandmarks, sideDirection, isTurtle]);
 
   // 권한/카메라 준비
   useEffect(() => {
@@ -339,49 +342,13 @@ export function SidePoseDetectionMode({ isActive }: SidePoseDetectionModeProps) 
             />
           );
         })}
-        {/* CVA(어깨-눈) 연결선: 항상 검은색으로 별도 표시 */}
-        {(() => {
-          if (!sideDirection || transformedLandmarks.length === 0) return null;
-          const eyeIndex = sideDirection === 'left' ? 1 : 2;
-          const shoulderIndex = sideDirection === 'left' ? 11 : 12;
-          const eye = transformedLandmarks.find(p => p.index === eyeIndex);
-          const shoulder = transformedLandmarks.find(p => p.index === shoulderIndex);
-          if (!eye || !shoulder) return null;
-          return (
-            <View
-              key="cva-black-line"
-              style={{
-                position: 'absolute',
-                left: shoulder.x,
-                top: shoulder.y,
-                width: Math.sqrt(
-                  Math.pow(eye.x - shoulder.x, 2) +
-                  Math.pow(eye.y - shoulder.y, 2)
-                ),
-                height: 3,
-                backgroundColor: '#000',
-                borderRadius: 1.5,
-                transform: [
-                  {
-                    rotate: `${Math.atan2(
-                      eye.y - shoulder.y,
-                      eye.x - shoulder.x
-                    ) * 180 / Math.PI}deg`
-                  }
-                ],
-                transformOrigin: '0 0',
-                zIndex: 2
-              }}
-            />
-          );
-        })()}
+        
         {/* 랜드마크 포인트 */}
         {transformedLandmarks.map((point, idx) => {
           const landmarkIndex = point.index;
-          const isLegLandmark = landmarkIndex >= 25 && landmarkIndex <= 28; // 다리
-          const isHipLandmark = landmarkIndex === 23 || landmarkIndex === 24; // 엉덩이
-          const isEarLandmark = landmarkIndex === 3 || landmarkIndex === 4; // 귀
-          const isShoulderLandmark = landmarkIndex === 11 || landmarkIndex === 12; // 어깨
+          
+          const problemLandmarks = sideDirection === 'left' ? [3, 11, 23] : [4, 12, 24]; // 귀, 어깨, 골반
+          const isProblemLandmark = isTurtle && problemLandmarks.includes(landmarkIndex);
 
           return (
             <View
@@ -391,11 +358,7 @@ export function SidePoseDetectionMode({ isActive }: SidePoseDetectionModeProps) 
                 {
                   top: point.y - 6,
                   left: point.x - 6,
-                  backgroundColor: isLegLandmark ? '#FFD700' : // 다리: 금색
-                                   isHipLandmark ? '#32CD32' : // 엉덩이: 초록색
-                                   isEarLandmark ? '#FF6B6B' : // 귀: 빨간색
-                                   isShoulderLandmark ? '#4ECDC4' : // 어깨: 청록색
-                                   sideDirection === 'left' ? '#4ECDC4' : '#FF6B6B',
+                  backgroundColor: isProblemLandmark ? '#FF6B6B' : '#87CEEB',
                   opacity: point.visibility ? Math.max(point.visibility, 0.7) : 0.9,
                   zIndex: 2
                 }
@@ -406,11 +369,12 @@ export function SidePoseDetectionMode({ isActive }: SidePoseDetectionModeProps) 
       </View>
       {/* 거북이 이모티콘: 거북목일 때만 왼쪽 위에 고정 */}
       {isTurtle && (
-        <View style={{ position: 'absolute', left: 16, top: 16, zIndex: 20 }}>
-          <Text style={{ fontSize: 28 }}>🐢</Text>
+        <View style={{ position: 'absolute', left: 24, top: 50, zIndex: 20 }}>
+          <Image source={require('@/assets/images/tutleneck-icon.png')} style={{ width: 60, height: 60 }} />
         </View>
       )}
       {/* 측면 모드 표시 배너 */}
+      {/*
       <View style={styles.sideBanner}>
         <Text style={styles.sideBannerText}>
           측면 포즈 감지 모드 {sideDirection ? `(${sideDirection === 'left' ? '좌측면' : '우측면'})` : ''}
@@ -421,6 +385,7 @@ export function SidePoseDetectionMode({ isActive }: SidePoseDetectionModeProps) 
           </Text>
         )}
       </View>
+      */}
     </View>
   );
 }

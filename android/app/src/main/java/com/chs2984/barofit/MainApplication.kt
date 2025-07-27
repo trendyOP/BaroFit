@@ -1,4 +1,4 @@
-package com.chs2984.ExpoPoseDetectionTutorial
+package com.chs2984.barofit
 
 import android.app.Application
 import android.content.res.Configuration
@@ -15,15 +15,15 @@ import com.facebook.soloader.SoLoader
 
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper
-import com.chs2984.ExpoPoseDetectionTutorial.poselandmarksframeprocessor.PoseLandmarksFrameProcessorPluginPackage
-import com.chs2984.ExpoPoseDetectionTutorial.PoseLandmarksPackage
+import com.chs2984.barofit.poselandmarksframeprocessor.PoseLandmarksFrameProcessorPluginPackage
+import com.chs2984.barofit.PoseLandmarksPackage
 
 class MainApplication : Application(), ReactApplication {
 
   override val reactNativeHost: ReactNativeHost = ReactNativeHostWrapper(
         this,
         object : DefaultReactNativeHost(this) {
-          override fun getPackages(): List<ReactPackage> {
+          override fun getPackages(): MutableList<ReactPackage> {
             val packages = PackageList(this).packages
             // Packages that cannot be autolinked yet can be added manually here, for example:
             packages.add(PoseLandmarksPackage())

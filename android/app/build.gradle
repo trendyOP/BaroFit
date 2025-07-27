@@ -90,9 +90,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.chs2984.ExpoPoseDetectionTutorial'
+    namespace 'com.chs2984.barofit'
     defaultConfig {
-        applicationId 'com.chs2984.ExpoPoseDetectionTutorial'
+        applicationId 'com.chs2984.barofit'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

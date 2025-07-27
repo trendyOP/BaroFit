@@ -1,5 +1,5 @@
 // PoseLandmarksFrameProcessorPlugin.kt
-package com.chs2984.ExpoPoseDetectionTutorial.poselandmarksframeprocessor
+package com.chs2984.barofit.poselandmarksframeprocessor
 
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
@@ -7,7 +7,7 @@ import com.mrousavy.camera.frameprocessors.Frame
 import com.mrousavy.camera.frameprocessors.FrameProcessorPlugin
 import com.mrousavy.camera.frameprocessors.VisionCameraProxy
 import android.util.Log
-import com.chs2984.ExpoPoseDetectionTutorial.PoseLandmarkerHolder
+import com.chs2984.barofit.PoseLandmarkerHolder
 
 class PoseLandmarksFrameProcessorPlugin(proxy: VisionCameraProxy, options: Map<String, Any>?): FrameProcessorPlugin() {
   override fun callback(frame: Frame, arguments: Map<String, Any>?): Any {

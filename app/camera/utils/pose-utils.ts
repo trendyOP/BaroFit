@@ -86,23 +86,42 @@ export function transformPoint(
  * MediaPipe Pose 랜드마크 순서에 따른 색상 분류
  */
 export function getLandmarkColor(index: number): string {
-  // MediaPipe Pose 랜드마크 인덱스 기준
-  if (index <= 10) {
-    // 얼굴 및 목 (0-10)
-    return '#FF6B6B'; // 빨강
-  } else if (index <= 16) {
+  // 얼굴 랜드마크는 정면에서 그리지 않으므로 11부터 시작
+  if (index <= 16) {
     // 어깨 및 팔 (11-16)
-    return '#4ECDC4'; // 청록
+    return '#87CEEB'; // 연한 하늘색
   } else if (index <= 22) {
     // 손목 및 손가락 (17-22)
-    return '#45B7D1'; // 파랑
+    return '#87CEEB'; // 연한 하늘색
   } else if (index <= 28) {
     // 엉덩이 및 다리 (23-28)
-    return '#96CEB4'; // 초록
+    return '#87CEEB'; // 연한 하늘색
   } else {
     // 발목 및 발가락 (29-32)
-    return '#FFEAA7'; // 노랑
+    return '#87CEEB'; // 연한 하늘색
   }
+}
+
+/**
+ * 연결선 색상 매핑 함수 추가
+ * 시작점과 끝점의 색상을 고려하여 연결선 색상 결정
+ */
+export function getConnectionColor(startIndex: number, endIndex: number): string {
+  // 정면 모드에서는 얼굴 연결선은 그리지 않음
+  if (startIndex <= 10 || endIndex <= 10) {
+    return '#87CEEB'; // 기본 하늘색 (실제로 그려지지 않음)
+  }
+
+  const startColor = getLandmarkColor(startIndex);
+  const endColor = getLandmarkColor(endIndex);
+  
+  // 둘 다 연한 하늘색이면 연한 하늘색 연결선
+  if (startColor === '#87CEEB' && endColor === '#87CEEB') {
+    return '#87CEEB';
+  }
+  
+  // 혼합된 경우 연한 하늘색 (기본값)
+  return '#87CEEB';
 }
 
 /**
@@ -110,9 +129,6 @@ export function getLandmarkColor(index: number): string {
  * 각 연결은 [시작 인덱스, 끝 인덱스] 형태
  */
 export const POSE_CONNECTIONS = [
-  // 얼굴
-  [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8], [9, 10],
-  
   // 몸통
   [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
   
@@ -132,12 +148,20 @@ export const POSE_CONNECTIONS = [
  * @returns 연결선 배열
  */
 export function generatePoseConnections(
-  landmarks: Array<{ x: number; y: number; visibility?: number }>,
+  landmarks: Array<{ x: number; y: number; visibility?: number; index?: number }>,
   connections: number[][] = POSE_CONNECTIONS
-): Array<{ start: { x: number; y: number }; end: { x: number; y: number }; color: string }> {
-  const lines: Array<{ start: { x: number; y: number }; end: { x: number; y: number }; color: string }> = [];
+): Array<{ start: { x: number; y: number }; end: { x: number; y: number }; color: string; startIndex: number; endIndex: number }> {
+  const lines: Array<{ start: { x: number; y: number }; end: { x: number; y: number }; color: string; startIndex: number; endIndex: number }> = [];
   
-  connections.forEach(([startIdx, endIdx]) => {
+  // connections가 undefined이거나 배열이 아닌 경우 기본값 사용
+  const safeConnections = connections || POSE_CONNECTIONS;
+  
+  if (!Array.isArray(safeConnections)) {
+    console.warn('generatePoseConnections: connections is not an array, using default POSE_CONNECTIONS');
+    return lines;
+  }
+  
+  safeConnections.forEach(([startIdx, endIdx]) => {
     const start = landmarks[startIdx];
     const end = landmarks[endIdx];
     
@@ -149,7 +173,9 @@ export function generatePoseConnections(
       lines.push({
         start: { x: start.x, y: start.y },
         end: { x: end.x, y: end.y },
-        color: getLandmarkColor(startIdx)
+        color: getConnectionColor(startIdx, endIdx),
+        startIndex: startIdx,
+        endIndex: endIdx
       });
     }
   });

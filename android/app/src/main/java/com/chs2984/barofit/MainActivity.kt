@@ -1,4 +1,4 @@
-package com.chs2984.ExpoPoseDetectionTutorial
+package com.chs2984.barofit
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

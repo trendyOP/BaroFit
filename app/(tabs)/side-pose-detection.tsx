@@ -8,6 +8,7 @@
  */
 import { SidePoseDetectionMode } from '@/app/camera/modes/SidePoseDetectionMode';
 import { useFocusEffect } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function SidePoseDetectionScreen() {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraKey, setCameraKey] = useState(0);
+  const router = useRouter();
+  const { showFeedback } = useLocalSearchParams();
 
   // 탭이 포커스될 때 카메라를 활성화하고, 포커스를 잃을 때 비활성화합니다.
   useFocusEffect(
@@ -31,8 +34,12 @@ export default function SidePoseDetectionScreen() {
     }, [])
   );
 
-  const handleStopTest = () => {
+  const handleSwitchToFrontDetection = () => {
     setIsCameraActive(false);
+    router.push({
+      pathname: '/(tabs)/front-pose-detection',
+      params: { showFeedback },
+    });
   };
 
   if (isCameraActive) {
@@ -40,10 +47,10 @@ export default function SidePoseDetectionScreen() {
       <View style={styles.container}>
         <SidePoseDetectionMode key={cameraKey} isActive={isCameraActive} />
         <TouchableOpacity
-          style={styles.stopButton}
-          onPress={handleStopTest}
+          style={styles.switchButton}
+          onPress={handleSwitchToFrontDetection}
         >
-          <Text style={styles.stopButtonText}>측면 감지 종료</Text>
+          <Text style={styles.switchButtonText}>정면자세감지로 전환</Text>
         </TouchableOpacity>
       </View>
     );
@@ -209,17 +216,22 @@ const styles = StyleSheet.create({
     color: '#666',
     lineHeight: 20,
   },
-  stopButton: {
+  switchButton: {
     position: 'absolute',
-    top: 50,
-    right: 20,
-    backgroundColor: 'rgba(255,0,0,0.8)',
+    bottom: 10,
+    right: 10,
+    backgroundColor: '#007AFF',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     zIndex: 1000,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  stopButtonText: {
+  switchButtonText: {
     color: 'white',
     fontSize: 14,
     fontWeight: 'bold',

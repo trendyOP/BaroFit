@@ -1,11 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform } from 'react-native';
 
 import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function TabLayout() {
@@ -14,39 +13,82 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: '#007AFF',
+        tabBarInactiveTintColor: '#8E8E93',
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
         tabBarStyle: Platform.select({
           ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
+            backgroundColor: '#FFFFFF',
+            borderTopWidth: 0,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 8,
           },
-          default: {},
+          default: {
+            backgroundColor: '#FFFFFF',
+            borderTopWidth: 0,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 8,
+          },
         }),
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: '측면 감지 카메라',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="exercise"
-        options={{
-          title: '정면 감지 카메라',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="camera.fill" color={color} />
+          title: '홈',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? "home" : "home-outline"} 
+              size={24} 
+              color={color} 
+            />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="record"
+        options={{
+          title: '기록',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? "time" : "time-outline"} 
+              size={24} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: '설정',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? "settings" : "settings-outline"} 
+              size={24} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      {/* 카메라 감지 탭들은 숨김 처리 */}
+      <Tabs.Screen
+        name="front-pose-detection"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="side-pose-detection"
+        options={{
+          href: null,
         }}
       />
     </Tabs>
