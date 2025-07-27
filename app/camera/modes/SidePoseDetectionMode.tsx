@@ -5,6 +5,7 @@
  * - UI 요소 제거, 랜드마크만 시각화
  * - 왼쪽/오른쪽 방향 판단 후 해당 방향 랜드마크만 표시
  */
+import * as Haptics from 'expo-haptics';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission, useFrameProcessor } from 'react-native-vision-camera';
@@ -14,8 +15,8 @@ import { usePoseAnalysis } from '@/app/camera/hooks/usePoseAnalysis';
 import { usePoseLandmarks } from '@/app/camera/hooks/usePoseLandmarks';
 import { poseLandmarker } from '@/app/camera/utils/frame-processors';
 import {
-    transformPoint,
-    type CameraLayout
+  transformPoint,
+  type CameraLayout
 } from '@/app/camera/utils/pose-utils';
 import { usePoseData } from '@/contexts/PoseDataContext';
 
@@ -149,30 +150,6 @@ export function SidePoseDetectionMode({ isActive }: SidePoseDetectionModeProps) 
   const analysisRef = useRef(analysis);
   analysisRef.current = analysis; // 매번 최신값으로 업데이트
 
-  // 1초마다 현재 자세 분석 결과를 Context로 보냄
-  useEffect(() => {
-    if (!isActive) return;
-    
-    const interval = setInterval(() => {
-      const currentAnalysis = analysisRef.current; // ref에서 최신값 가져오기
-      if (currentAnalysis && typeof currentAnalysis.postureScore === 'number') {
-        console.log('[측면] 1초마다 자세 데이터 저장:', currentAnalysis.postureScore);
-        addPoseData(currentAnalysis);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isActive, addPoseData]); // addPoseData도 의존성에 추가
-
-  // 진단용: landmarks 구조 출력 (최초 1회)
-  React.useEffect(() => {
-    if (landmarks) {
-      // 1차원인지 2차원인지 확인
-      // eslint-disable-next-line no-console
-      console.log('landmarks 구조:', Array.isArray(landmarks) ? (Array.isArray(landmarks[0]) ? '2차원' : '1차원') : typeof landmarks, landmarks);
-    }
-  }, [landmarks]);
-
   // 실제 랜드마크 배열 추출 (1차원/2차원 모두 대응)
   const actualLandmarks = useMemo(() => {
     if (!landmarks) return [];
@@ -196,6 +173,74 @@ export function SidePoseDetectionMode({ isActive }: SidePoseDetectionModeProps) 
   // 거북목 판단
   const isTurtle = useMemo(() => isTurtleNeck(cva), [cva]);
   
+  // 진동 인터벌 ID를 저장하는 ref
+  const hapticIntervalRef = useRef<number | null>(null);
+
+  // 1초마다 현재 자세 분석 결과를 Context로 보냄
+  useEffect(() => {
+    if (!isActive) return;
+    
+    const interval = setInterval(() => {
+      const currentAnalysis = analysisRef.current; // ref에서 최신값 가져오기
+      if (currentAnalysis && typeof currentAnalysis.postureScore === 'number') {
+        console.log('[측면] 1초마다 자세 데이터 저장:', currentAnalysis.postureScore);
+        addPoseData(currentAnalysis);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isActive, addPoseData]); // addPoseData도 의존성에 추가
+
+  // 거북목 감지 시 진동 피드백 (isTurtle 값과 동기화)
+  useEffect(() => {
+    // 카메라가 비활성화 상태이면 진동 중지
+    if (!isActive) {
+      if (hapticIntervalRef.current) {
+        clearInterval(hapticIntervalRef.current);
+        hapticIntervalRef.current = null;
+        console.log('카메라 비활성화. 진동 피드백 중지');
+      }
+      return;
+    }
+    
+    // isTurtle 상태에 따라 진동 제어
+    if (isTurtle) {
+      // 거북목 상태이고, 진동이 현재 울리고 있지 않으면 시작
+      if (hapticIntervalRef.current === null) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        console.log('거북목 감지! 진동 피드백 시작');
+        hapticIntervalRef.current = setInterval(() => {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          console.log('거북목 지속 중! 진동 피드백');
+        }, 1000) as unknown as number; // 1초마다 진동
+      }
+    } else {
+      // 거북목 상태가 아니고, 진동이 현재 울리고 있으면 중지
+      if (hapticIntervalRef.current !== null) {
+        clearInterval(hapticIntervalRef.current);
+        hapticIntervalRef.current = null;
+        console.log('거북목 해소. 진동 피드백 중지');
+      }
+    }
+
+    // 클린업 함수: 컴포넌트 언마운트 시 진동 중지
+    return () => {
+      if (hapticIntervalRef.current !== null) {
+        clearInterval(hapticIntervalRef.current);
+        hapticIntervalRef.current = null;
+      }
+    };
+  }, [isActive, isTurtle]); // isTurtle 값에 따라 반응하도록 변경
+
+  // 진단용: landmarks 구조 출력 (최초 1회)
+  React.useEffect(() => {
+    if (landmarks) {
+      // 1차원인지 2차원인지 확인
+      // eslint-disable-next-line no-console
+      console.log('landmarks 구조:', Array.isArray(landmarks) ? (Array.isArray(landmarks[0]) ? '2차원' : '1차원') : typeof landmarks, landmarks);
+    }
+  }, [landmarks]);
+
   // 디버깅: 방향 판단 결과 출력
   React.useEffect(() => {
     if (sideDirection && actualLandmarks.length > 0) {

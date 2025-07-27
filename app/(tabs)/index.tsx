@@ -1,3 +1,4 @@
+import { usePoseData } from '@/contexts/PoseDataContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
@@ -9,6 +10,7 @@ export default function HomeScreen() {
   const screenWidth = Dimensions.get('window').width;
   const adImageAspectRatio = 778 / 124; // 이미지 원본 비율
   const adCalculatedHeight = screenWidth / adImageAspectRatio; // 화면 너비에 따른 적정 높이
+  const { poseHistory } = usePoseData();
 
   const handleGoToPoseDetection = () => {
     router.push({
@@ -16,6 +18,17 @@ export default function HomeScreen() {
       params: { showFeedback: realTimeFeedback.toString() },
     });
   };
+
+  const latestPose = poseHistory.length > 0 ? poseHistory[poseHistory.length - 1] : null;
+  const latestScore = latestPose ? Math.round(latestPose.postureScore) : 0;
+  const latestDate = latestPose ? new Date(latestPose.timestamp).toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).replace(/\./g, '.').replace(/ /g, ' ').trim() : '--. --. -- --:--';
 
   return (
     <View style={styles.container}>
@@ -41,12 +54,12 @@ export default function HomeScreen() {
         <TouchableOpacity style={styles.scoreCard}>
           <View style={styles.scoreHeader}>
             <Text style={styles.scoreTitle}>최근 자세점수</Text>
-            <Text style={styles.scoreDate}>2025.07.25 13:32</Text>
+            <Text style={styles.scoreDate}>{latestDate}</Text>
           </View>
           <View style={styles.scoreContent}>
-            <Text style={styles.scoreValue}>58점</Text>
+            <Text style={styles.scoreValue}>{latestScore}점</Text>
             <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: '58%' }]} />
+              <View style={[styles.progressFill, { width: `${latestScore}%` }]} />
             </View>
             <Ionicons name="chevron-forward" size={20} color="#007AFF" style={styles.arrowIcon} />
           </View>
@@ -63,7 +76,9 @@ export default function HomeScreen() {
 
         {/* Status Message Card */}
         <View style={styles.statusMessageCard}>
-          <Text style={styles.properPostureDescription}>지금 자세측정이 되고 있지 않습니다.</Text>
+          <Text style={styles.properPostureDescription}>
+            {latestPose ? `최근 자세 측정 시간: ${latestDate}` : '자세 측정이 아직 시작되지 않았습니다.'}
+          </Text>
         </View>
 
         {/* Real-time Feedback Toggle */}
@@ -202,7 +217,7 @@ const styles = StyleSheet.create({
   properPostureDescription: {
     fontSize: 14,
     color: '#8E8E93',
-    lineHeight: 130,
+    lineHeight: 30, // 높이 조절을 위해 lineHeight를 줄임
     textAlign: 'center',
   },
   properPostureButtonCard: {
