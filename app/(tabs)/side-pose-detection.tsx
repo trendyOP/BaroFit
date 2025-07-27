@@ -36,24 +36,15 @@ export default function SidePoseDetectionScreen() {
     }, [])
   );
 
-  const handleSwitchToFrontDetection = () => {
-    setIsCameraActive(false);
-    router.push({
-      pathname: '/(tabs)/front-pose-detection',
-      params: { showFeedback },
-    });
-  };
-
   if (isCameraActive) {
     return (
       <View style={styles.container}>
-        <SidePoseDetectionMode key={cameraKey} isActive={isCameraActive} />
-        <TouchableOpacity
-          style={styles.switchButton}
-          onPress={handleSwitchToFrontDetection}
-        >
-          <Text style={styles.switchButtonText}>정면자세감지로 전환</Text>
-        </TouchableOpacity>
+        <SidePoseDetectionMode 
+          key={cameraKey} 
+          isActive={isCameraActive} 
+          router={router}
+          showFeedback={showFeedback}
+        />
       </View>
     );
   }
@@ -218,24 +209,5 @@ const styles = StyleSheet.create({
     color: '#666',
     lineHeight: 20,
   },
-  switchButton: {
-    position: 'absolute',
-    bottom: 10,
-    right: 10,
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    zIndex: 1000,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  switchButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
+
 });

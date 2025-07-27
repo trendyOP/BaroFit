@@ -5,10 +5,12 @@
  * - UI 요소 제거, 랜드마크만 시각화
  * - 왼쪽/오른쪽 방향 판단 후 해당 방향 랜드마크만 표시
  */
+import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission, useFrameProcessor } from 'react-native-vision-camera';
 
 import { useBodyOrientation } from '@/app/camera/hooks/useBodyOrientation';
@@ -133,9 +135,11 @@ function isTurtleNeck(cva: number | null): boolean {
 
 interface SidePoseDetectionModeProps {
   isActive: boolean;
+  router?: any;
+  showFeedback?: string | string[];
 }
 
-export function SidePoseDetectionMode({ isActive }: SidePoseDetectionModeProps) {
+export function SidePoseDetectionMode({ isActive, router, showFeedback }: SidePoseDetectionModeProps) {
   const { hasPermission, requestPermission } = useCameraPermission();
   const [cameraPosition, setCameraPosition] = useState<'front' | 'back'>('front');
   const device = useCameraDevice(cameraPosition);
@@ -144,6 +148,8 @@ export function SidePoseDetectionMode({ isActive }: SidePoseDetectionModeProps) 
   const { addPoseData } = usePoseData();
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const { settings } = useSettings(); // SettingsContext에서 설정 가져오기
+  const defaultRouter = useRouter();
+  const currentRouter = router || defaultRouter;
 
   // Native Plugin Hook 활성화
   const { landmarks, frameWidth, frameHeight } = usePoseLandmarks();
@@ -406,100 +412,292 @@ export function SidePoseDetectionMode({ isActive }: SidePoseDetectionModeProps) 
     }
   }, []);
 
+  // 현재 자세 점수를 가져오는 로직
+  const currentScore = useMemo(() => {
+    if (!analysis) return 0;
+    return analysis.postureScore || 0;
+  }, [analysis]);
+
+  // 실시간 피드백 오버레이 상태 관리
+  const showFeedbackOverlay = showFeedback === 'true';
+
   if (!hasPermission || !device || !isReady) {
     return <View style={[styles.container, styles.centered]} />;
   }
 
   return (
-    <View style={styles.container}>
-      <Camera
-        style={StyleSheet.absoluteFill}
-        device={device}
-        isActive={isActive && isReady}
-        frameProcessor={frameProcessor}
-        pixelFormat="rgb"
-        onLayout={(event) => {
-          const { x, y, width, height } = event.nativeEvent.layout;
-          setCamLayout({ x, y, width, height });
-        }}
-      />
-      {/* 방향별 랜드마크 및 연결선 시각화 */}
-      <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-        {/* 연결선 */}
-        {sideConnections.map((line, idx) => {
-          if (!line) return null;
-          return (
-            <View
-              key={`line-${idx}`}
-              style={{
-                position: 'absolute',
-                left: line.start.x,
-                top: line.start.y,
-                width: Math.sqrt(
-                  Math.pow(line.end.x - line.start.x, 2) +
-                  Math.pow(line.end.y - line.start.y, 2)
-                ),
-                height: 3,
-                backgroundColor: line.color,
-                borderRadius: 1.5,
-                transform: [
-                  {
-                    rotate: `${Math.atan2(
-                      line.end.y - line.start.y,
-                      line.end.x - line.start.x
-                    ) * 180 / Math.PI}deg`
-                  }
-                ],
-                transformOrigin: '0 0',
-                zIndex: 1
+    <View style={[styles.container, showFeedbackOverlay ? styles.containerWithFeedback : styles.containerWithoutFeedback]}>
+      {showFeedbackOverlay ? (
+        // 실시간 피드백이 켜져있을 때: 메인 컨텐츠가 위, 카메라가 아래
+        <>
+          {/* 메인 컨텐츠 영역 - 맨 위 */}
+          <View style={styles.mainContentTop}>
+            {/* 상단 점수 및 후면 버튼 */}
+            <View style={styles.topRow}>
+              <View style={styles.scoreContainer}>
+                <Text style={styles.scoreText}>자세 점수 : {currentScore} 점</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.rearButton}
+                onPress={() => setCameraPosition(prev => prev === 'front' ? 'back' : 'front')}
+              >
+                <Ionicons name="camera" size={16} color="#FFFFFF" />
+                <Text style={styles.rearButtonText}>후면</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* 측면 분석 정보 영역 */}
+            <View style={styles.contentRow}>
+              <View style={styles.analysisContainer}>
+                <Text style={styles.sectionTitle}>측면 분석</Text>
+                <View style={styles.analysisContentBox}>
+                  <ScrollView 
+                    style={styles.scrollView}
+                    showsVerticalScrollIndicator={false}
+                    nestedScrollEnabled={true}
+                  >
+                    <Text style={styles.analysisText}>
+                      측면 포즈 감지 모드 {sideDirection ? `(${sideDirection === 'left' ? '좌측면' : '우측면'})` : ''}
+                    </Text>
+                    {cva && (
+                      <Text style={styles.cvaText}>
+                        CVA: {cva.toFixed(1)}° {isTurtle ? '🐢' : '✅'}
+                      </Text>
+                    )}
+                    {sideAngle && (
+                      <Text style={styles.angleText}>
+                        측면 각도: {sideAngle.toFixed(1)}°
+                      </Text>
+                    )}
+                  </ScrollView>
+                </View>
+              </View>
+              
+              <View style={styles.statusContainer}>
+                <Text style={styles.sectionTitle}>상태</Text>
+                <View style={styles.statusContentBox}>
+                  <ScrollView 
+                    style={styles.scrollView}
+                    showsVerticalScrollIndicator={false}
+                    nestedScrollEnabled={true}
+                  >
+                    {isTurtle ? (
+                      <Text style={styles.warningText}>• 거북목 감지됨</Text>
+                    ) : (
+                      <Text style={styles.normalText}>• 정상 자세</Text>
+                    )}
+                    <Text style={styles.statusText}>
+                      • 방향: {sideDirection ? (sideDirection === 'left' ? '좌측면' : '우측면') : '감지 중'}
+                    </Text>
+                  </ScrollView>
+                </View>
+              </View>
+            </View>
+
+            {/* 하단 정면 자세 감지로 전환 버튼 */}
+            <TouchableOpacity 
+              style={styles.detectionButton}
+              onPress={() => {
+                currentRouter.push({
+                  pathname: '/(tabs)/front-pose-detection',
+                  params: { showFeedback },
+                });
+              }}
+            >
+              <View style={styles.buttonIcon}>
+                <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+              </View>
+              <Text style={styles.detectionButtonText}>정면 자세 감지로 전환</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 카메라 영역 - 아래쪽 */}
+          <View style={styles.cameraContainer}>
+            <Camera
+              style={styles.camera}
+              device={device}
+              isActive={isActive && isReady}
+              frameProcessor={frameProcessor}
+              pixelFormat="rgb"
+              onLayout={(event) => {
+                const { x, y, width, height } = event.nativeEvent.layout;
+                setCamLayout({ x, y, width, height });
               }}
             />
-          );
-        })}
-        
-        {/* 랜드마크 포인트 */}
-        {transformedLandmarks.map((point, idx) => {
-          const landmarkIndex = point.index;
-          
-          const problemLandmarks = sideDirection === 'left' ? [3, 11, 23] : [4, 12, 24]; // 귀, 어깨, 골반
-          const isProblemLandmark = isTurtle && problemLandmarks.includes(landmarkIndex);
+            {/* 방향별 랜드마크 및 연결선 시각화 */}
+            <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+              {/* 연결선 */}
+              {sideConnections.map((line, idx) => {
+                if (!line) return null;
+                return (
+                  <View
+                    key={`line-${idx}`}
+                    style={{
+                      position: 'absolute',
+                      left: line.start.x,
+                      top: line.start.y,
+                      width: Math.sqrt(
+                        Math.pow(line.end.x - line.start.x, 2) +
+                        Math.pow(line.end.y - line.start.y, 2)
+                      ),
+                      height: 3,
+                      backgroundColor: line.color,
+                      borderRadius: 1.5,
+                      transform: [
+                        {
+                          rotate: `${Math.atan2(
+                            line.end.y - line.start.y,
+                            line.end.x - line.start.x
+                          ) * 180 / Math.PI}deg`
+                        }
+                      ],
+                      transformOrigin: '0 0',
+                      zIndex: 1
+                    }}
+                  />
+                );
+              })}
+              
+              {/* 랜드마크 포인트 */}
+              {transformedLandmarks.map((point, idx) => {
+                const landmarkIndex = point.index;
+                
+                const problemLandmarks = sideDirection === 'left' ? [3, 11, 23] : [4, 12, 24]; // 귀, 어깨, 골반
+                const isProblemLandmark = isTurtle && problemLandmarks.includes(landmarkIndex);
 
-          return (
-            <View
-              key={idx}
-              style={[
-                styles.posePoint,
-                {
-                  top: point.y - 6,
-                  left: point.x - 6,
-                  backgroundColor: isProblemLandmark ? '#FF6B6B' : '#87CEEB',
-                  opacity: point.visibility ? Math.max(point.visibility, 0.7) : 0.9,
-                  zIndex: 2
-                }
-              ]}
-            />
-          );
-        })}
-      </View>
-      {/* 거북이 이모티콘: 거북목일 때만 왼쪽 위에 고정 */}
-      {isTurtle && (
-        <View style={{ position: 'absolute', left: 24, top: 50, zIndex: 20 }}>
-          <Image source={require('@/assets/images/tutleneck-icon.png')} style={{ width: 60, height: 60 }} />
-        </View>
+                return (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.posePoint,
+                      {
+                        top: point.y - 6,
+                        left: point.x - 6,
+                        backgroundColor: isProblemLandmark ? '#FF6B6B' : '#87CEEB',
+                        opacity: point.visibility ? Math.max(point.visibility, 0.7) : 0.9,
+                        zIndex: 2
+                      }
+                    ]}
+                  />
+                );
+              })}
+            </View>
+            {/* 거북이 이모티콘: 거북목일 때만 왼쪽 위에 고정 */}
+            {isTurtle && (
+              <View style={{ position: 'absolute', left: 24, top: 50, zIndex: 20 }}>
+                <Image source={require('@/assets/images/tutleneck-icon.png')} style={{ width: 60, height: 60 }} />
+              </View>
+            )}
+          </View>
+        </>
+      ) : (
+        // 실시간 피드백이 꺼져있을 때: 전체 화면 카메라
+        <>
+          <Camera
+            style={StyleSheet.absoluteFill}
+            device={device}
+            isActive={isActive && isReady}
+            frameProcessor={frameProcessor}
+            pixelFormat="rgb"
+            onLayout={(event) => {
+              const { x, y, width, height } = event.nativeEvent.layout;
+              setCamLayout({ x, y, width, height });
+            }}
+          />
+          {/* 방향별 랜드마크 및 연결선 시각화 */}
+          <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+            {/* 연결선 */}
+            {sideConnections.map((line, idx) => {
+              if (!line) return null;
+              return (
+                <View
+                  key={`line-${idx}`}
+                  style={{
+                    position: 'absolute',
+                    left: line.start.x,
+                    top: line.start.y,
+                    width: Math.sqrt(
+                      Math.pow(line.end.x - line.start.x, 2) +
+                      Math.pow(line.end.y - line.start.y, 2)
+                    ),
+                    height: 3,
+                    backgroundColor: line.color,
+                    borderRadius: 1.5,
+                    transform: [
+                      {
+                        rotate: `${Math.atan2(
+                          line.end.y - line.start.y,
+                          line.end.x - line.start.x
+                        ) * 180 / Math.PI}deg`
+                      }
+                    ],
+                    transformOrigin: '0 0',
+                    zIndex: 1
+                  }}
+                />
+              );
+            })}
+            
+            {/* 랜드마크 포인트 */}
+            {transformedLandmarks.map((point, idx) => {
+              const landmarkIndex = point.index;
+              
+              const problemLandmarks = sideDirection === 'left' ? [3, 11, 23] : [4, 12, 24]; // 귀, 어깨, 골반
+              const isProblemLandmark = isTurtle && problemLandmarks.includes(landmarkIndex);
+
+              return (
+                <View
+                  key={idx}
+                  style={[
+                    styles.posePoint,
+                    {
+                      top: point.y - 6,
+                      left: point.x - 6,
+                      backgroundColor: isProblemLandmark ? '#FF6B6B' : '#87CEEB',
+                      opacity: point.visibility ? Math.max(point.visibility, 0.7) : 0.9,
+                      zIndex: 2
+                    }
+                  ]}
+                />
+              );
+            })}
+          </View>
+          {/* 거북이 이모티콘: 거북목일 때만 왼쪽 위에 고정 */}
+          {isTurtle && (
+            <View style={{ position: 'absolute', left: 24, top: 50, zIndex: 20 }}>
+              <Image source={require('@/assets/images/tutleneck-icon.png')} style={{ width: 60, height: 60 }} />
+            </View>
+          )}
+          {/* 측면 모드 표시 배너 */}
+          {/*
+          <View style={styles.sideBanner}>
+            <Text style={styles.sideBannerText}>
+              측면 포즈 감지 모드 {sideDirection ? `(${sideDirection === 'left' ? '좌측면' : '우측면'})` : ''}
+            </Text>
+            {cva && (
+              <Text style={styles.cvaText}>
+                CVA: {cva.toFixed(1)}° {isTurtle ? '🐢' : '✅'}
+              </Text>
+            )}
+          </View>
+          */}
+          {/* 정면 모드로 전환 버튼 */}
+          <TouchableOpacity
+            style={styles.switchButton}
+            onPress={() => {
+              currentRouter.push({
+                pathname: '/(tabs)/front-pose-detection',
+                params: { showFeedback },
+              });
+            }}
+          >
+            <View style={styles.buttonIcon}>
+              <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+            </View>
+            <Text style={styles.switchButtonText}>정면 자세 감지로 전환</Text>
+          </TouchableOpacity>
+        </>
       )}
-      {/* 측면 모드 표시 배너 */}
-      {/*
-      <View style={styles.sideBanner}>
-        <Text style={styles.sideBannerText}>
-          측면 포즈 감지 모드 {sideDirection ? `(${sideDirection === 'left' ? '좌측면' : '우측면'})` : ''}
-        </Text>
-        {cva && (
-          <Text style={styles.cvaText}>
-            CVA: {cva.toFixed(1)}° {isTurtle ? '🐢' : '✅'}
-          </Text>
-        )}
-      </View>
-      */}
     </View>
   );
 }
@@ -507,6 +705,11 @@ export function SidePoseDetectionMode({ isActive }: SidePoseDetectionModeProps) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  containerWithFeedback: {
+    backgroundColor: '#F2F2F7',
+  },
+  containerWithoutFeedback: {
     backgroundColor: 'black',
   },
   centered: {
@@ -539,9 +742,157 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   cvaText: {
-    color: 'white',
+    fontSize: 12,
+    color: '#4ECDC4',
+    marginBottom: 4,
+  },
+  switchButton: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    zIndex: 10,
+  },
+  buttonIcon: {
+    marginRight: 8,
+  },
+  switchButtonText: {
     fontSize: 14,
-    marginTop: 4,
-    textAlign: 'center',
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  mainContentTop: {
+    backgroundColor: '#FFFFFF',
+    padding: 15,
+    paddingTop: 40,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 10,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  scoreContainer: {
+    backgroundColor: '#F8F9FA',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  scoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333333',
+  },
+  rearButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  rearButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: 4,
+  },
+  contentRow: {
+    flexDirection: 'row',
+    marginBottom: 15,
+    gap: 15,
+  },
+  analysisContainer: {
+    flex: 1,
+  },
+  analysisContentBox: {
+    borderWidth: 2,
+    borderRadius: 12,
+    padding: 10,
+    height: 100,
+    borderColor: '#4ECDC4',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  analysisText: {
+    fontSize: 12,
+    color: '#4ECDC4',
+    marginBottom: 4,
+  },
+  angleText: {
+    fontSize: 12,
+    color: '#4ECDC4',
+    marginBottom: 4,
+  },
+  statusContainer: {
+    flex: 1,
+  },
+  statusContentBox: {
+    borderWidth: 2,
+    borderRadius: 12,
+    padding: 10,
+    height: 100,
+    borderColor: '#FF6B6B',
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333333',
+  },
+  normalText: {
+    fontSize: 12,
+    color: '#34C759',
+    marginBottom: 4,
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#FF6B6B',
+    marginBottom: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#333333',
+    marginBottom: 4,
+  },
+  detectionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  detectionButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  cameraContainer: {
+    flex: 1,
+    marginTop: 3,
+    marginHorizontal: 20,
+    borderRadius: 20,
+    overflow: 'hidden',
+    minHeight: 300,
+    backgroundColor: '#000000',
+  },
+  camera: {
+    flex: 1,
   },
 }); 
