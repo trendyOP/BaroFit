@@ -1,5 +1,6 @@
 import { useSettings } from '@/contexts/SettingsContext';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import React from 'react';
 import { ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
@@ -42,47 +43,82 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>일반</Text>
           
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => {
+            // 이 버튼 자체에 특별한 기능은 없지만, 클릭 피드백을 위해 추가
+            if (settings.hapticsEnabled) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}>
             <View style={styles.settingLeft}>
               <Ionicons name="notifications-outline" size={20} color="#007AFF" />
               <Text style={styles.settingText}>푸시 알림</Text>
             </View>
             <Switch
               value={settings.notificationsEnabled}
-              onValueChange={toggleNotifications}
+              onValueChange={(value) => {
+                toggleNotifications();
+                if (settings.hapticsEnabled) {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
+              }}
               trackColor={{ false: '#E5E5EA', true: '#007AFF' }}
               thumbColor="#FFFFFF"
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => {
+            // 이 버튼 자체에 특별한 기능은 없지만, 클릭 피드백을 위해 추가
+            if (settings.hapticsEnabled) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}>
             <View style={styles.settingLeft}>
               <Ionicons name="volume-high-outline" size={20} color="#007AFF" />
               <Text style={styles.settingText}>소리 피드백</Text>
             </View>
             <Switch
               value={settings.soundEnabled}
-              onValueChange={toggleSound}
+              onValueChange={(value) => {
+                toggleSound();
+                if (settings.hapticsEnabled) {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
+              }}
               trackColor={{ false: '#E5E5EA', true: '#007AFF' }}
               thumbColor="#FFFFFF"
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => {
+            // 이 버튼 자체에 특별한 기능은 없지만, 클릭 피드백을 위해 추가
+            if (settings.hapticsEnabled) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}>
             <View style={styles.settingLeft}>
               <Ionicons name="hardware-chip-outline" size={20} color="#007AFF" />
               <Text style={styles.settingText}>진동 피드백</Text>
             </View>
             <Switch
               value={settings.hapticsEnabled}
-              onValueChange={toggleHaptics}
+              onValueChange={(value) => {
+                toggleHaptics();
+                if (settings.hapticsEnabled) {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
+              }}
               trackColor={{ false: '#E5E5EA', true: '#007AFF' }}
               thumbColor="#FFFFFF"
             />
           </TouchableOpacity>
 
           {/* 자동 저장은 Context에 없으므로 기존 상태 사용 */}
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => {
+            // 이 버튼 자체에 특별한 기능은 없지만, 클릭 피드백을 위해 추가
+            if (settings.hapticsEnabled) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}>
             <View style={styles.settingLeft}>
               <Ionicons name="save-outline" size={20} color="#007AFF" />
               <Text style={styles.settingText}>자동 저장</Text>

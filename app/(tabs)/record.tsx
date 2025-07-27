@@ -2,13 +2,16 @@ import { IssuesSummary } from '@/components/IssuesSummary';
 import { PoseTimeline } from '@/components/PoseTimeline';
 import { SubscriptionModal } from '@/components/SubscriptionModal';
 import { usePoseData } from '@/contexts/PoseDataContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import React, { useState } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function RecordScreen() {
   const { poseHistory, clearHistory } = usePoseData();
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const { settings } = useSettings();
 
   console.log('기록 화면 렌더링 - 데이터 개수:', poseHistory.length);
 
@@ -31,7 +34,12 @@ export default function RecordScreen() {
 
         {/* Controls */}
         <View style={styles.controls}>
-          <TouchableOpacity style={[styles.controlButton, styles.clearButton]} onPress={clearHistory}>
+          <TouchableOpacity style={[styles.controlButton, styles.clearButton]} onPress={() => {
+            clearHistory();
+            if (settings.hapticsEnabled) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}>
             <Ionicons name="trash-outline" size={18} color="#FFFFFF" style={styles.buttonIcon} />
             <Text style={styles.controlButtonText}>데이터 초기화</Text>
           </TouchableOpacity>
@@ -45,7 +53,12 @@ export default function RecordScreen() {
         {/* Detailed Analysis Button */}
         <TouchableOpacity 
           style={styles.analysisButton}
-          onPress={() => setShowSubscriptionModal(true)}
+          onPress={() => {
+            setShowSubscriptionModal(true);
+            if (settings.hapticsEnabled) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            }
+          }}
         >
           <Ionicons name="analytics-outline" size={20} color="#007AFF" style={styles.buttonIcon} />
           <Text style={styles.analysisButtonText}>상세분석 보기</Text>

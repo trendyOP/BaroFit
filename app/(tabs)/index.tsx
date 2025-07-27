@@ -1,5 +1,7 @@
 import { usePoseData } from '@/contexts/PoseDataContext';
+import { useSettings } from '@/contexts/SettingsContext'; // SettingsContext 임포트
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics'; // Haptics 임포트
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Dimensions, Image, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
@@ -11,8 +13,12 @@ export default function HomeScreen() {
   const adImageAspectRatio = 778 / 124; // 이미지 원본 비율
   const adCalculatedHeight = screenWidth / adImageAspectRatio; // 화면 너비에 따른 적정 높이
   const { poseHistory } = usePoseData();
+  const { settings } = useSettings(); // 설정 가져오기
 
   const handleGoToPoseDetection = () => {
+    if (settings.hapticsEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     router.push({
       pathname: '/(tabs)/front-pose-detection',
       params: { showFeedback: realTimeFeedback.toString() },
@@ -43,7 +49,11 @@ export default function HomeScreen() {
           />
           <Text style={styles.appName}>바로핏</Text>
         </View>
-        <TouchableOpacity style={styles.notificationButton}>
+        <TouchableOpacity style={styles.notificationButton} onPress={() => {
+          if (settings.hapticsEnabled) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }
+        }}>
           <Ionicons name="notifications-outline" size={24} color="#007AFF" />
         </TouchableOpacity>
       </View>
@@ -51,7 +61,12 @@ export default function HomeScreen() {
       {/* Main Content */}
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
         {/* Recent Posture Score Card */}
-        <TouchableOpacity style={styles.scoreCard}>
+        <TouchableOpacity style={styles.scoreCard} onPress={() => {
+          if (settings.hapticsEnabled) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }
+          router.push('/(tabs)/record');
+        }}>
           <View style={styles.scoreHeader}>
             <Text style={styles.scoreTitle}>최근 자세점수</Text>
             <Text style={styles.scoreDate}>{latestDate}</Text>
@@ -89,7 +104,12 @@ export default function HomeScreen() {
           </View>
           <Switch
             value={realTimeFeedback}
-            onValueChange={setRealTimeFeedback}
+            onValueChange={(value) => {
+              setRealTimeFeedback(value);
+              if (settings.hapticsEnabled) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+            }}
             trackColor={{ false: '#E5E5EA', true: '#007AFF' }}
             thumbColor="#FFFFFF"
           />
@@ -98,7 +118,11 @@ export default function HomeScreen() {
 
       {/* Advertisement Section */}
       <View style={styles.adWrapper}>
-        <TouchableOpacity style={[styles.adSection, { height: adCalculatedHeight }]}>
+        <TouchableOpacity style={[styles.adSection, { height: adCalculatedHeight }]} onPress={() => {
+          if (settings.hapticsEnabled) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }
+        }}>
           <Image 
             source={require('@/assets/images/hackerton-banner.png')} 
             style={styles.adImage}

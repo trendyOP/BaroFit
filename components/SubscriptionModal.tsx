@@ -1,4 +1,6 @@
+import { useSettings } from '@/contexts/SettingsContext'; // SettingsContext 임포트
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics'; // Haptics 임포트
 import React, { useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -44,10 +46,21 @@ const SUBSCRIPTION_PLANS = [
 
 export function SubscriptionModal({ visible, onClose }: SubscriptionModalProps) {
   const [selectedPlan, setSelectedPlan] = useState<string>('premium');
+  const { settings } = useSettings(); // 설정 가져오기
 
   const handleSubscribe = () => {
     // TODO: 실제 구독 처리 로직
     console.log('구독 처리:', selectedPlan);
+    if (settings.hapticsEnabled) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+    onClose();
+  };
+
+  const handleClose = () => {
+    if (settings.hapticsEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     onClose();
   };
 
@@ -56,12 +69,12 @@ export function SubscriptionModal({ visible, onClose }: SubscriptionModalProps) 
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
             <Ionicons name="close" size={24} color="#8E8E93" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>BaroFit Pro</Text>
@@ -91,7 +104,12 @@ export function SubscriptionModal({ visible, onClose }: SubscriptionModalProps) 
                   selectedPlan === plan.id && styles.selectedPlan,
                   plan.popular && styles.popularPlan
                 ]}
-                onPress={() => setSelectedPlan(plan.id)}
+                onPress={() => {
+                  setSelectedPlan(plan.id);
+                  if (settings.hapticsEnabled) {
+                    Haptics.selectionAsync(); // 선택 시 가벼운 햅틱
+                  }
+                }}
               >
                 {plan.popular && (
                   <View style={styles.popularBadge}>
