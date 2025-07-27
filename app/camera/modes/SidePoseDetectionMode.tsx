@@ -5,16 +5,19 @@
  * - UI 요소 제거, 랜드마크만 시각화
  * - 왼쪽/오른쪽 방향 판단 후 해당 방향 랜드마크만 표시
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission, useFrameProcessor } from 'react-native-vision-camera';
 
+import { useBodyOrientation } from '@/app/camera/hooks/useBodyOrientation';
+import { usePoseAnalysis } from '@/app/camera/hooks/usePoseAnalysis';
 import { usePoseLandmarks } from '@/app/camera/hooks/usePoseLandmarks';
 import { poseLandmarker } from '@/app/camera/utils/frame-processors';
 import {
-  transformPoint,
-  type CameraLayout
+    transformPoint,
+    type CameraLayout
 } from '@/app/camera/utils/pose-utils';
+import { usePoseData } from '@/contexts/PoseDataContext';
 
 // 고도화된 방향 판단 함수 (x, z 좌표 모두 활용)
 function getAdvancedSideDirection(landmarks: any[]): 'left' | 'right' | null {
@@ -135,16 +138,31 @@ export function SidePoseDetectionMode({ isActive }: SidePoseDetectionModeProps) 
   const device = useCameraDevice(cameraPosition);
   const [isReady, setIsReady] = useState(false);
   const [camLayout, setCamLayout] = useState<CameraLayout>({ x: 0, y: 0, width: 0, height: 0 });
+  const { addPoseData } = usePoseData();
 
   // Native Plugin Hook 활성화
   const { landmarks, frameWidth, frameHeight } = usePoseLandmarks();
+  const { orientation } = useBodyOrientation();
+  const analysis = usePoseAnalysis(landmarks, orientation, device?.position as 'front' | 'back' || 'back');
 
-  // 컴포넌트 언마운트 시 카메라 정리
+  // 최신 analysis 값을 저장하는 ref  
+  const analysisRef = useRef(analysis);
+  analysisRef.current = analysis; // 매번 최신값으로 업데이트
+
+  // 1초마다 현재 자세 분석 결과를 Context로 보냄
   useEffect(() => {
-    return () => {
-      // setIsActive(false); // This line is removed as per the new_code
-    };
-  }, []);
+    if (!isActive) return;
+    
+    const interval = setInterval(() => {
+      const currentAnalysis = analysisRef.current; // ref에서 최신값 가져오기
+      if (currentAnalysis && typeof currentAnalysis.postureScore === 'number') {
+        console.log('[측면] 1초마다 자세 데이터 저장:', currentAnalysis.postureScore);
+        addPoseData(currentAnalysis);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isActive, addPoseData]); // addPoseData도 의존성에 추가
 
   // 진단용: landmarks 구조 출력 (최초 1회)
   React.useEffect(() => {

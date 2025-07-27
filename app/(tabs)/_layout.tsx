@@ -66,6 +66,19 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="learn"
+        options={{
+          title: '알아보기',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? "book" : "book-outline"} 
+              size={24} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: '설정',

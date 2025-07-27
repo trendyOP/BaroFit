@@ -23,11 +23,13 @@ export default function FrontPoseDetectionScreen() {
   useFocusEffect(
     React.useCallback(() => {
       // Screen is focused
+      console.log('정면 포즈 감지 화면 포커스 - 카메라 활성화');
       setCameraKey(prev => prev + 1);
       setIsCameraActive(true);
 
       return () => {
         // Screen is unfocused
+        console.log('정면 포즈 감지 화면 언포커스 - 카메라 비활성화 (데이터는 유지)');
         setIsCameraActive(false);
       };
     }, [])

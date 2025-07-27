@@ -1,7 +1,17 @@
+import { IssuesSummary } from '@/components/IssuesSummary';
+import { PoseTimeline } from '@/components/PoseTimeline';
+import { SubscriptionModal } from '@/components/SubscriptionModal';
+import { usePoseData } from '@/contexts/PoseDataContext';
 import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function RecordScreen() {
+  const { poseHistory, clearHistory } = usePoseData();
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+
+  console.log('기록 화면 렌더링 - 데이터 개수:', poseHistory.length);
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
@@ -9,44 +19,47 @@ export default function RecordScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>기록</Text>
+        <Text style={styles.headerSubtitle}>데이터 개수: {poseHistory.length}</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Timeline Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>타임라인</Text>
-          <View style={styles.timelinePlaceholder}>
-            <Ionicons name="time-outline" size={48} color="#8E8E93" />
-            <Text style={styles.timelinePlaceholderText}>타임라인이 여기에 표시됩니다</Text>
-          </View>
+          <Text style={styles.sectionTitle}>자세점수 타임라인</Text>
+          <PoseTimeline />
         </View>
 
-        {/* Discovered Diseases Section */}
+        {/* Controls */}
+        <View style={styles.controls}>
+          <TouchableOpacity style={[styles.controlButton, styles.clearButton]} onPress={clearHistory}>
+            <Ionicons name="trash-outline" size={18} color="#FFFFFF" style={styles.buttonIcon} />
+            <Text style={styles.controlButtonText}>데이터 초기화</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Discovered Issues Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>발견된 질병</Text>
-          <View style={styles.diseasesCard}>
-            <View style={styles.diseaseTags}>
-              <View style={styles.diseaseTag}>
-                <Text style={styles.diseaseTagText}>#거북목</Text>
-              </View>
-              <View style={styles.diseaseTag}>
-                <Text style={styles.diseaseTagText}>#허리 뒤틀림</Text>
-              </View>
-              <View style={styles.diseaseTag}>
-                <Text style={styles.diseaseTagText}>#골반후반경사</Text>
-              </View>
-            </View>
-          </View>
+          <IssuesSummary />
         </View>
 
         {/* Detailed Analysis Button */}
-        <TouchableOpacity style={styles.analysisButton}>
-          <Text style={styles.analysisButtonText}>상세분석</Text>
+        <TouchableOpacity 
+          style={styles.analysisButton}
+          onPress={() => setShowSubscriptionModal(true)}
+        >
+          <Ionicons name="analytics-outline" size={20} color="#007AFF" style={styles.buttonIcon} />
+          <Text style={styles.analysisButtonText}>상세분석 보기</Text>
         </TouchableOpacity>
 
         {/* Spacer for bottom space */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* Subscription Modal */}
+      <SubscriptionModal 
+        visible={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+      />
     </View>
   );
 }
@@ -69,9 +82,36 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000000',
   },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#8E8E93',
+    marginTop: 4,
+  },
   content: {
     flex: 1,
     padding: 20,
+  },
+  controls: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 20,
+  },
+  controlButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#8E8E93',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  clearButton: {
+    backgroundColor: '#FF3B30',
+  },
+  controlButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 4,
   },
   section: {
     marginBottom: 20,
@@ -82,47 +122,8 @@ const styles = StyleSheet.create({
     color: '#000000',
     marginBottom: 12,
   },
-  timelinePlaceholder: {
-    backgroundColor: '#F2F2F7',
-    borderRadius: 12,
-    padding: 40,
-    alignItems: 'center',
-    minHeight: 200,
-    justifyContent: 'center',
-  },
-  timelinePlaceholderText: {
-    fontSize: 14,
-    color: '#8E8E93',
-    marginTop: 8,
-  },
-  diseasesCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  diseaseTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  diseaseTag: {
-    backgroundColor: '#F2F2F7',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  diseaseTagText: {
-    fontSize: 14,
-    color: '#333333',
-    fontWeight: '500',
-  },
   analysisButton: {
-    backgroundColor: '#F2F2F7',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 20,
@@ -133,11 +134,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  buttonIcon: {
+    marginRight: 8,
   },
   analysisButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#007AFF',
   },
   bottomSpacer: {
     height: 100,

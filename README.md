@@ -102,3 +102,59 @@ Join our community of developers creating universal apps.
 - **해결**:
     - `tsconfig.json`의 `paths` 설정이 `@/*`: `["./*"]`로 올바르게 되어 있는지 재확인.
     - Expo 캐시 문제일 수 있으므로 `npx expo start -c` 명령어로 캐시를 초기화한 후 재실행하여 해결.
+
+## 기록 탭 (Record Tab) 기능 구조
+
+> **요약** : 실시간으로 수집되는 자세 분석 결과를 `Context`에 누적 저장하고, 기록 탭에서 타임라인 그래프·문제점 태그로 시각화합니다. 탭 전환 시에도 데이터가 유지됩니다.
+
+### 1. 데이터 흐름
+
+1. **카메라 화면(PoseDetectionMode / SidePoseDetectionMode)**
+   - MediaPipe Frame Processor → `usePoseLandmarks()` → 랜드마크 추출
+   - `usePoseAnalysis()` 로 `PoseAnalysisResult` 산출
+   - 2초마다 `addPoseData(analysis)` 호출 → Context 저장
+
+2. **Context (`contexts/PoseDataContext.tsx`)**
+   - React `Context + useState` 로 히스토리 관리
+   - 최근 100개까지만 슬라이스하여 메모리 누수 방지
+   - `getTimelineData()` / `getUniqueIssues()` 헬퍼 제공
+   - 메모이제이션(`useMemo`) 으로 재렌더 최소화
+
+3. **기록 탭(`app/(tabs)/record.tsx`)**
+   - `PoseTimeline` : `poseHistory` → 선형 그래프(React Native `synth-line`)
+   - `IssuesSummary` : 현재·누적 문제점을 태그‧리스트로 표현
+   - "데이터 초기화" 버튼 → `clearHistory()` 실행
+
+### 2. 주요 컴포넌트
+
+| 컴포넌트 | 역할 |
+| --- | --- |
+| `PoseTimeline` | 시간축 + 점수값을  View 기반 그래프로 그립니다. 문제 발생 시 빨간 마커 표시 |
+| `IssuesSummary` | #거북목 · #어깨뒤틀림 등 태그와 실시간 알림 표시 |
+| `PoseDataProvider` | 앱 전역에서 접근 가능한 히스토리 Context 제공 |
+
+### 3. 탭 전환 시 데이터 유지 전략
+
+- `PoseDataProvider`를 `app/_layout.tsx` 루트에 래핑하여 **모든 탭이 동일한 Context 인스턴스를 공유**
+- 카메라 탭 이동 시 `isActive` 플래그로 `setInterval` 중단 → 불필요한 분석 최소화
+- `contextValue` 메모이제이션으로 Context 재생성 방지 → 기록 탭 재렌더 시 데이터 초기화 문제 해결
+
+### 4. 커스텀 분석 지표 예시
+
+```ts
+interface PoseAnalysisResult {
+  postureScore: number;      // 종합 점수 (0~100)
+  issues: string[];          // "머리가 앞으로 나와 있습니다" 등
+  kinematicChain: { /* … */ }
+  // … 그 외 분석 필드
+}
+```
+
+- 점수는 `sigmoid` 함수로 정규화하여 급격한 변화를 완화
+- `issues` 배열을 Summary 컴포넌트에서 태그로 변환해 노출
+
+### 5. 향후 확장 아이디어
+
+- 히스토리 `AsyncStorage` 또는 SQLite 영속화 → 앱 재실행 후에도 데이터 보존
+- 주간/월간 집계 그래프 추가 (리덕트 + VictoryChart 등)
+- CSV/PDF 내보내기 기능으로 물리치료사와 공유

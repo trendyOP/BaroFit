@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Circle, Line, Svg } from "react-native-svg";
 import { Camera, useCameraDevice, useCameraPermission, useFrameProcessor } from 'react-native-vision-camera';
@@ -15,6 +15,7 @@ import {
     transformPoint,
     type CameraLayout
 } from '@/app/camera/utils/pose-utils';
+import { usePoseData } from '@/contexts/PoseDataContext';
 
 interface PoseDetectionModeProps {
   isActive: boolean;
@@ -32,13 +33,26 @@ export function PoseDetectionMode({ isActive, showFeedbackOverlay = true }: Pose
   const { landmarks, frameWidth, frameHeight } = usePoseLandmarks();
   const { orientation, changeOrientation, getOrientationLabel } = useBodyOrientation();
   const analysis = usePoseAnalysis(landmarks, orientation, device?.position as 'front' | 'back' || 'back');
+  const { addPoseData } = usePoseData();
 
-  // 컴포넌트 언마운트 시 카메라 정리
+  // 최신 analysis 값을 저장하는 ref
+  const analysisRef = useRef(analysis);
+  analysisRef.current = analysis; // 매번 최신값으로 업데이트
+
+  // 1초마다 현재 자세 분석 결과를 Context로 보냄
   useEffect(() => {
-    return () => {
-      // setIsActive(false); // This line is removed as per the new_code
-    };
-  }, []);
+    if (!isActive) return;
+    
+    const interval = setInterval(() => {
+      const currentAnalysis = analysisRef.current; // ref에서 최신값 가져오기
+      if (currentAnalysis && typeof currentAnalysis.postureScore === 'number') {
+        console.log('1초마다 자세 데이터 저장:', currentAnalysis.postureScore);
+        addPoseData(currentAnalysis);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isActive, addPoseData]); // addPoseData도 의존성에 추가
 
   // 정확한 좌표 변환된 랜드마크 계산
   const transformedLandmarks = useMemo(() => {
