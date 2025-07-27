@@ -5,6 +5,7 @@
  * - UI 요소 제거, 랜드마크만 시각화
  * - 왼쪽/오른쪽 방향 판단 후 해당 방향 랜드마크만 표시
  */
+import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
@@ -19,6 +20,7 @@ import {
   type CameraLayout
 } from '@/app/camera/utils/pose-utils';
 import { usePoseData } from '@/contexts/PoseDataContext';
+import { useSettings } from '@/contexts/SettingsContext';
 
 // 고도화된 방향 판단 함수 (x, z 좌표 모두 활용)
 function getAdvancedSideDirection(landmarks: any[]): 'left' | 'right' | null {
@@ -140,6 +142,8 @@ export function SidePoseDetectionMode({ isActive }: SidePoseDetectionModeProps) 
   const [isReady, setIsReady] = useState(false);
   const [camLayout, setCamLayout] = useState<CameraLayout>({ x: 0, y: 0, width: 0, height: 0 });
   const { addPoseData } = usePoseData();
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const { settings } = useSettings(); // SettingsContext에서 설정 가져오기
 
   // Native Plugin Hook 활성화
   const { landmarks, frameWidth, frameHeight } = usePoseLandmarks();
@@ -173,8 +177,35 @@ export function SidePoseDetectionMode({ isActive }: SidePoseDetectionModeProps) 
   // 거북목 판단
   const isTurtle = useMemo(() => isTurtleNeck(cva), [cva]);
   
-  // 진동 인터벌 ID를 저장하는 ref
-  const hapticIntervalRef = useRef<number | null>(null);
+  // 진동 및 소리 인터벌 ID를 저장하는 ref
+  const feedbackIntervalRef = useRef<number | null>(null);
+
+  // 사운드 로딩
+  useEffect(() => {
+    let isMounted = true;
+    async function loadSound() {
+      console.log('사운드 로딩 시작');
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+           require('@/assets/sounds/alert.mp3') // mp3로 변경
+        );
+        if (isMounted) {
+          setSound(sound);
+          console.log('사운드 로딩 완료');
+        }
+      } catch (error) {
+        console.error('사운드 로딩 실패:', error);
+      }
+    }
+
+    loadSound();
+
+    return () => {
+      isMounted = false;
+      console.log('사운드 언로딩');
+      sound?.unloadAsync(); 
+    };
+  }, []);
 
   // 1초마다 현재 자세 분석 결과를 Context로 보냄
   useEffect(() => {
@@ -191,46 +222,66 @@ export function SidePoseDetectionMode({ isActive }: SidePoseDetectionModeProps) 
     return () => clearInterval(interval);
   }, [isActive, addPoseData]); // addPoseData도 의존성에 추가
 
-  // 거북목 감지 시 진동 피드백 (isTurtle 값과 동기화)
+  // 거북목 감지 시 진동 및 소리 피드백
   useEffect(() => {
-    // 카메라가 비활성화 상태이면 진동 중지
+    async function playSound() {
+      if (sound) {
+        try {
+          await sound.replayAsync();
+        } catch (error) {
+          console.error('사운드 재생 실패:', error);
+        }
+      }
+    }
+
+    // 카메라가 비활성화 상태이면 피드백 중지
     if (!isActive) {
-      if (hapticIntervalRef.current) {
-        clearInterval(hapticIntervalRef.current);
-        hapticIntervalRef.current = null;
-        console.log('카메라 비활성화. 진동 피드백 중지');
+      if (feedbackIntervalRef.current) {
+        clearInterval(feedbackIntervalRef.current);
+        feedbackIntervalRef.current = null;
+        console.log('카메라 비활성화. 피드백 중지');
       }
       return;
     }
     
-    // isTurtle 상태에 따라 진동 제어
+    // isTurtle 상태에 따라 피드백 제어
     if (isTurtle) {
-      // 거북목 상태이고, 진동이 현재 울리고 있지 않으면 시작
-      if (hapticIntervalRef.current === null) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        console.log('거북목 감지! 진동 피드백 시작');
-        hapticIntervalRef.current = setInterval(() => {
+      // 거북목 상태이고, 피드백이 현재 울리고 있지 않으면 시작
+      if (feedbackIntervalRef.current === null) {
+        if (settings.hapticsEnabled) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          console.log('거북목 지속 중! 진동 피드백');
-        }, 1000) as unknown as number; // 1초마다 진동
+        }
+        if (settings.soundEnabled) {
+          playSound();
+        }
+        console.log('거북목 감지! 피드백 시작');
+        feedbackIntervalRef.current = setInterval(() => {
+          if (settings.hapticsEnabled) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          }
+          if (settings.soundEnabled) {
+            playSound();
+          }
+          console.log('거북목 지속 중! 피드백');
+        }, 1000); 
       }
     } else {
-      // 거북목 상태가 아니고, 진동이 현재 울리고 있으면 중지
-      if (hapticIntervalRef.current !== null) {
-        clearInterval(hapticIntervalRef.current);
-        hapticIntervalRef.current = null;
-        console.log('거북목 해소. 진동 피드백 중지');
+      // 거북목 상태가 아니고, 피드백이 현재 울리고 있으면 중지
+      if (feedbackIntervalRef.current !== null) {
+        clearInterval(feedbackIntervalRef.current);
+        feedbackIntervalRef.current = null;
+        console.log('거북목 해소. 피드백 중지');
       }
     }
 
-    // 클린업 함수: 컴포넌트 언마운트 시 진동 중지
+    // 클린업 함수: 컴포넌트 언마운트 시 피드백 중지
     return () => {
-      if (hapticIntervalRef.current !== null) {
-        clearInterval(hapticIntervalRef.current);
-        hapticIntervalRef.current = null;
+      if (feedbackIntervalRef.current !== null) {
+        clearInterval(feedbackIntervalRef.current);
+        feedbackIntervalRef.current = null;
       }
     };
-  }, [isActive, isTurtle]); // isTurtle 값에 따라 반응하도록 변경
+  }, [isActive, isTurtle, sound, settings.hapticsEnabled, settings.soundEnabled]); // 설정 변경 시 반응하도록 의존성 추가
 
   // 진단용: landmarks 구조 출력 (최초 1회)
   React.useEffect(() => {

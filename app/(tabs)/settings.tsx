@@ -1,11 +1,19 @@
+import { useSettings } from '@/contexts/SettingsContext';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
 export default function SettingsScreen() {
-  const [notifications, setNotifications] = React.useState(true);
-  const [soundEnabled, setSoundEnabled] = React.useState(true);
-  const [autoSave, setAutoSave] = React.useState(true);
+  const { settings, toggleHaptics, toggleSound, toggleNotifications, isLoadingSettings } = useSettings();
+
+  // 설정 로딩 중에는 아무것도 렌더링하지 않거나 로딩 인디케이터를 표시
+  if (isLoadingSettings) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>설정 불러오는 중...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -37,11 +45,11 @@ export default function SettingsScreen() {
           <TouchableOpacity style={styles.settingItem}>
             <View style={styles.settingLeft}>
               <Ionicons name="notifications-outline" size={20} color="#007AFF" />
-              <Text style={styles.settingText}>알림</Text>
+              <Text style={styles.settingText}>푸시 알림</Text>
             </View>
             <Switch
-              value={notifications}
-              onValueChange={setNotifications}
+              value={settings.notificationsEnabled}
+              onValueChange={toggleNotifications}
               trackColor={{ false: '#E5E5EA', true: '#007AFF' }}
               thumbColor="#FFFFFF"
             />
@@ -50,11 +58,11 @@ export default function SettingsScreen() {
           <TouchableOpacity style={styles.settingItem}>
             <View style={styles.settingLeft}>
               <Ionicons name="volume-high-outline" size={20} color="#007AFF" />
-              <Text style={styles.settingText}>소리</Text>
+              <Text style={styles.settingText}>소리 피드백</Text>
             </View>
             <Switch
-              value={soundEnabled}
-              onValueChange={setSoundEnabled}
+              value={settings.soundEnabled}
+              onValueChange={toggleSound}
               trackColor={{ false: '#E5E5EA', true: '#007AFF' }}
               thumbColor="#FFFFFF"
             />
@@ -62,12 +70,26 @@ export default function SettingsScreen() {
 
           <TouchableOpacity style={styles.settingItem}>
             <View style={styles.settingLeft}>
+              <Ionicons name="hardware-chip-outline" size={20} color="#007AFF" />
+              <Text style={styles.settingText}>진동 피드백</Text>
+            </View>
+            <Switch
+              value={settings.hapticsEnabled}
+              onValueChange={toggleHaptics}
+              trackColor={{ false: '#E5E5EA', true: '#007AFF' }}
+              thumbColor="#FFFFFF"
+            />
+          </TouchableOpacity>
+
+          {/* 자동 저장은 Context에 없으므로 기존 상태 사용 */}
+          <TouchableOpacity style={styles.settingItem}>
+            <View style={styles.settingLeft}>
               <Ionicons name="save-outline" size={20} color="#007AFF" />
               <Text style={styles.settingText}>자동 저장</Text>
             </View>
             <Switch
-              value={autoSave}
-              onValueChange={setAutoSave}
+              value={true} // 임시로 true
+              onValueChange={() => {}} // 임시로 빈 함수
               trackColor={{ false: '#E5E5EA', true: '#007AFF' }}
               thumbColor="#FFFFFF"
             />
@@ -164,6 +186,16 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#8E8E93',
+  },
   container: {
     flex: 1,
     backgroundColor: '#F2F2F7',
