@@ -35,7 +35,7 @@ export function PoseTimeline() {
       console.log('타임라인 데이터 1개:', entry);
       return [{
         x: TIMELINE_WIDTH / 2,
-        y: TIMELINE_HEIGHT - ((entry.postureScore / 100) * (TIMELINE_HEIGHT - 60)) - 40,
+        y: TIMELINE_HEIGHT - ((entry.postureScore / 100) * (TIMELINE_HEIGHT - 80)) - 50,
         score: entry.postureScore,
         time: entry.timestamp,
         issues: entry.issues,
@@ -49,7 +49,7 @@ export function PoseTimeline() {
 
     const result = sortedHistory.map((entry, index) => {
       const x = ((entry.timestamp - minTime) / timeRange) * (TIMELINE_WIDTH - 40) + 20;
-      const y = TIMELINE_HEIGHT - ((entry.postureScore / 100) * (TIMELINE_HEIGHT - 60)) - 40;
+      const y = TIMELINE_HEIGHT - ((entry.postureScore / 100) * (TIMELINE_HEIGHT - 80)) - 50;
       
       return {
         x,
@@ -92,7 +92,7 @@ export function PoseTimeline() {
           <View style={styles.grid}>
             {[0, 25, 50, 75, 100].map(score => (
               <View key={score} style={[styles.gridLine, { 
-                bottom: ((score / 100) * (TIMELINE_HEIGHT - 60)) + 40 
+                bottom: ((score / 100) * (TIMELINE_HEIGHT - 80)) + 50 
               }]}>
                 <Text style={styles.gridLabel}>{score}</Text>
               </View>
@@ -141,12 +141,7 @@ export function PoseTimeline() {
                 </View>
               )}
               
-              {/* 점수 표시 (일부 포인트만) */}
-              {index % Math.max(1, Math.floor(timelineData.length / 5)) === 0 && (
-                <View style={styles.scoreLabel}>
-                  <Text style={styles.scoreLabelText}>{Math.round(point.score)}</Text>
-                </View>
-              )}
+
             </View>
           ))}
 
@@ -273,25 +268,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  scoreLabel: {
-    position: 'absolute',
-    top: -30,
-    left: -8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  scoreLabelText: {
-    fontSize: 10,
-    color: '#333333',
-    fontWeight: '600',
-  },
+
   timeLabel: {
     fontSize: 10,
     color: '#8E8E93',

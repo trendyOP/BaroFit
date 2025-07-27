@@ -22,7 +22,6 @@ export default function RecordScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>기록</Text>
-        <Text style={styles.headerSubtitle}>데이터 개수: {poseHistory.length}</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -95,11 +94,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000000',
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#8E8E93',
-    marginTop: 4,
-  },
+
   content: {
     flex: 1,
     padding: 20,
