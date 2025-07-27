@@ -3,8 +3,8 @@ import { useSettings } from '@/contexts/SettingsContext'; // SettingsContext 임
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics'; // Haptics 임포트
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { Dimensions, Image, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Dimensions, FlatList, Image, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
 const POSTURE_TYPE_INFO: Record<string, { name: string; description: string; color: string }> = {
   'A형': { name: '골반-어깨 불균형', description: '골반이 기울고 어깨가 회전된 상태', color: '#FF6B6B' },
@@ -15,14 +15,34 @@ const POSTURE_TYPE_INFO: Record<string, { name: string; description: string; col
   '미분류': { name: '미분류', description: '자세 유형을 분석 중입니다', color: '#8E8E93' },
 };
 
+const AD_BANNERS = [
+  require('@/assets/images/hackerton-banner.png'),
+  require('@/assets/images/hackerton-banner1.png'),
+];
+
 export default function HomeScreen() {
-  const [realTimeFeedback, setRealTimeFeedback] = React.useState(true);
+  const [realTimeFeedback, setRealTimeFeedback] = useState(true);
   const router = useRouter();
   const screenWidth = Dimensions.get('window').width;
   const adImageAspectRatio = 778 / 124; // 이미지 원본 비율
   const adCalculatedHeight = screenWidth / adImageAspectRatio; // 화면 너비에 따른 적정 높이
   const { poseHistory } = usePoseData();
   const { settings } = useSettings(); // 설정 가져오기
+  const [currentAdIndex, setCurrentAdIndex] = useState(0);
+  const flatListRef = useRef<FlatList<any>>(null);
+
+  // 3초마다 광고 배너 슬라이드
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentAdIndex(prevIndex => {
+        const nextIndex = (prevIndex + 1) % AD_BANNERS.length;
+        flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+        return nextIndex;
+      });
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleGoToPoseDetection = () => {
     if (settings.hapticsEnabled) {
@@ -129,17 +149,28 @@ export default function HomeScreen() {
 
       {/* Advertisement Section */}
       <View style={styles.adWrapper}>
-        <TouchableOpacity style={[styles.adSection, { height: adCalculatedHeight }]} onPress={() => {
-          if (settings.hapticsEnabled) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          }
-        }}>
-          <Image 
-            source={require('@/assets/images/hackerton-banner.png')} 
-            style={styles.adImage}
-            resizeMode="cover"
-          />
-        </TouchableOpacity>
+        <FlatList
+          ref={flatListRef}
+          data={AD_BANNERS}
+          renderItem={({ item }) => (
+            <TouchableOpacity style={[styles.adSection, { width: screenWidth, height: adCalculatedHeight }]} onPress={() => {
+              if (settings.hapticsEnabled) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+            }}>
+              <Image 
+                source={item}
+                style={styles.adImage}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
+          )}
+          keyExtractor={(item, index) => index.toString()}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScrollToIndexFailed={() => {}}
+        />
       </View>
     </View>
   );
