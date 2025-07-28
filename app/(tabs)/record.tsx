@@ -31,18 +31,7 @@ export default function RecordScreen() {
           <PoseTimeline />
         </View>
 
-        {/* Controls */}
-        <View style={styles.controls}>
-          <TouchableOpacity style={[styles.controlButton, styles.clearButton]} onPress={() => {
-            clearHistory();
-            if (settings.hapticsEnabled) {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }
-          }}>
-            <Ionicons name="trash-outline" size={18} color="#FFFFFF" style={styles.buttonIcon} />
-            <Text style={styles.controlButtonText}>데이터 초기화</Text>
-          </TouchableOpacity>
-        </View>
+
 
         {/* Discovered Issues Section */}
         <View style={styles.section}>
@@ -98,28 +87,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 20,
-  },
-  controls: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: 20,
-  },
-  controlButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#8E8E93',
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  clearButton: {
-    backgroundColor: '#FF3B30',
-  },
-  controlButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 4,
   },
   section: {
     marginBottom: 20,

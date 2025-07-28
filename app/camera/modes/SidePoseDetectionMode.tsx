@@ -18,8 +18,8 @@ import { usePoseAnalysis } from '@/app/camera/hooks/usePoseAnalysis';
 import { usePoseLandmarks } from '@/app/camera/hooks/usePoseLandmarks';
 import { poseLandmarker } from '@/app/camera/utils/frame-processors';
 import {
-  transformPoint,
-  type CameraLayout
+    transformPoint,
+    type CameraLayout
 } from '@/app/camera/utils/pose-utils';
 import { usePoseData } from '@/contexts/PoseDataContext';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -446,7 +446,9 @@ export function SidePoseDetectionMode({ isActive, router, showFeedback }: SidePo
                 onPress={() => setCameraPosition(prev => prev === 'front' ? 'back' : 'front')}
               >
                 <Ionicons name="camera" size={16} color="#FFFFFF" />
-                <Text style={styles.rearButtonText}>후면</Text>
+                <Text style={styles.rearButtonText}>
+                  {cameraPosition === 'front' ? '후면' : '전면'}
+                </Text>
               </TouchableOpacity>
             </View>
 

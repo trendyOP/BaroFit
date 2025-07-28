@@ -184,7 +184,9 @@ export function PoseDetectionMode({ isActive, showFeedbackOverlay = true, router
                 onPress={() => setCameraPosition(prev => prev === 'front' ? 'back' : 'front')}
               >
                 <Ionicons name="camera" size={16} color="#FFFFFF" />
-                <Text style={styles.rearButtonText}>후면</Text>
+                <Text style={styles.rearButtonText}>
+                  {cameraPosition === 'front' ? '후면' : '전면'}
+                </Text>
               </TouchableOpacity>
             </View>
 

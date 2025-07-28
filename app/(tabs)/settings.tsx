@@ -1,11 +1,13 @@
+import { usePoseData } from '@/contexts/PoseDataContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import React from 'react';
-import { ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
 export default function SettingsScreen() {
   const { settings, toggleHaptics, toggleSound, toggleNotifications, isLoadingSettings } = useSettings();
+  const { clearHistory } = usePoseData();
 
   // 설정 로딩 중에는 아무것도 렌더링하지 않거나 로딩 인디케이터를 표시
   if (isLoadingSettings) {
@@ -15,6 +17,29 @@ export default function SettingsScreen() {
       </View>
     );
   }
+
+  const handleDataClear = () => {
+    Alert.alert(
+      '데이터 초기화',
+      '모든 자세 기록 데이터가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.',
+      [
+        {
+          text: '취소',
+          style: 'cancel',
+        },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: () => {
+            clearHistory();
+            if (settings.hapticsEnabled) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -179,10 +204,10 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={handleDataClear}>
             <View style={styles.settingLeft}>
               <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-              <Text style={[styles.settingText, { color: '#FF3B30' }]}>데이터 삭제</Text>
+              <Text style={[styles.settingText, { color: '#FF3B30' }]}>데이터 초기화</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
           </TouchableOpacity>
